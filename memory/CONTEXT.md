@@ -21,10 +21,12 @@ related:
 
 ## Current State
 
-- **Phase**: App scaffolded — ready to begin feature development
+- **Phase**: Design & planning complete — ready to begin implementation
 - **What exists**: Full SvelteKit project scaffolded with npm, TypeScript, Prettier, ESLint, Vitest, Tailwind CSS, Drizzle (SQLite/better-sqlite3)
 - **Database**: Drizzle configured, `DATABASE_URL=local.db` in `.env` — no schema defined yet (deferred until needed)
 - **What doesn't exist yet**: Any app-specific code — routes, components, API endpoints, map integration
+- **Design spec**: `docs/superpowers/specs/2026-03-17-initial-webapp-design.md` — approved
+- **Implementation plan**: `docs/superpowers/plans/2026-03-17-initial-webapp.md` — 16 tasks, reviewed and approved
 
 ## Core User Flow (Target)
 
@@ -46,7 +48,9 @@ related:
 
 _(update this section at the start and end of each session)_
 
-- App scaffolded. Next step: begin building the core UI — map, search bar, controls.
+- Design spec and 16-task implementation plan are complete and committed.
+- **Next step**: Begin executing the plan (Task 1: install Leaflet + proj4 dependencies).
+- User has not yet chosen execution mode (subagent-driven vs inline). Ask at session start.
 
 ## People / Roles
 

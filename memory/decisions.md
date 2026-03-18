@@ -65,3 +65,35 @@ related:
 **Decision:** Added Tailwind CSS at scaffold time alongside the core stack.
 **Reason:** Lightweight utility-first styling fits the project's small scale. Easier than managing custom CSS for a map-focused UI. Included at scaffold time to avoid retrofitting later.
 **Alternatives considered:** Plain CSS, UnoCSS, no framework.
+
+---
+
+### [2026-03-17] Fixed sidebar layout (Option B)
+
+**Decision:** Collapsible left sidebar (~300px) with all controls; Leaflet map fills remaining viewport.
+**Reason:** Keeps everything visible at once without collapsing/hiding panels. Simplest to build. For a small user group, the sidebar space trade-off is worth the clarity. Search bar fits comfortably at ~240px usable width.
+**Alternatives considered:** Full-screen map with floating panels (Google Maps style); top controls + bottom stats drawer.
+
+---
+
+### [2026-03-17] Explicit search button — no auto-triggering
+
+**Decision:** User must click a "Search" button to fetch crop data. Changing controls or clicking the map does NOT auto-trigger a search.
+**Reason:** CDL API is slow (seconds per request). Auto-triggering would create terrible UX with constant loading, especially while the user is still adjusting settings. Map interactions (panning, zooming, clicking) are for investigating previous results, not triggering new ones.
+**Alternatives considered:** Auto-search on control change, auto-search on map move.
+
+---
+
+### [2026-03-17] Defer Area Summary and Year Comparison from initial build
+
+**Decision:** Area Summary (crop % breakdown) and Year Comparison (toggle between two years) are deferred to follow-up iterations.
+**Reason:** Area Summary requires server-side raster/GeoTIFF processing (GDAL or equivalent) — significant complexity. Year Comparison doubles CDL API calls and adds overlay-switching UI. Both are high-value but not essential for the core search-and-overlay loop.
+**Alternatives considered:** Including them in v1.
+
+---
+
+### [2026-03-17] Extract lat/lon bbox math to shared `geo.ts` module
+
+**Decision:** `computeBboxLatLon` lives in `src/lib/geo.ts` (no proj4 dependency) so both client (MapView bounding box rectangle) and server (coordinate projection) can import it.
+**Reason:** The client needs this function to draw the real-time bounding box preview on the map. If it lived in `src/lib/server/`, client-side code couldn't import it.
+**Alternatives considered:** Duplicating the formula in MapView; keeping all coordinate math server-only.
