@@ -22,19 +22,20 @@
 	} = $props();
 
 	let mapContainer: HTMLDivElement;
-	let map: L.Map | undefined;
 
-	onMount(async () => {
-		const L = await import('leaflet');
+	onMount(() => {
+		let map: import('leaflet').Map | undefined;
 
-		map = L.map(mapContainer).setView(center, zoom);
+		import('leaflet').then((L) => {
+			map = L.map(mapContainer).setView(center, zoom);
 
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-		}).addTo(map);
+			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+			}).addTo(map);
 
-		map.on('click', (e: L.LeafletMouseEvent) => {
-			onMapClick?.(e.latlng.lat, e.latlng.lng);
+			map.on('click', (e: import('leaflet').LeafletMouseEvent) => {
+				onMapClick?.(e.latlng.lat, e.latlng.lng);
+			});
 		});
 
 		return () => {
