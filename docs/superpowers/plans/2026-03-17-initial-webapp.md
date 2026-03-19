@@ -1163,7 +1163,7 @@ Replace the default SvelteKit page with the two-zone layout: collapsible sidebar
 </script>
 
 {#if !collapsed}
-	<aside class="flex h-full w-80 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4">
+	<aside class="flex h-full w-80 shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4">
 		<div class="flex items-center justify-between">
 			<h1 class="text-xl font-bold text-gray-800">Field Finder</h1>
 			<button
@@ -1179,7 +1179,7 @@ Replace the default SvelteKit page with the two-zone layout: collapsible sidebar
 {:else}
 	<button
 		onclick={() => (collapsed = false)}
-		class="flex h-full w-10 flex-shrink-0 items-start justify-center border-r border-gray-200 bg-gray-50 pt-4 text-gray-500 hover:text-gray-700"
+		class="flex h-full w-10 shrink-0 items-start justify-center border-r border-gray-200 bg-gray-50 pt-4 text-gray-500 hover:text-gray-700"
 		aria-label="Expand sidebar"
 	>
 		▶
@@ -1849,7 +1849,7 @@ Floating color legend on the map (bottom-left corner). Reads from the shared `CR
 	const crops = getAllCrops();
 </script>
 
-<div class="absolute bottom-4 left-4 z-[1000] rounded-lg bg-white/95 px-3 py-2 shadow-md">
+<div class="absolute bottom-4 left-4 z-1000 rounded-lg bg-white/95 px-3 py-2 shadow-md">
 	<h3 class="mb-1 text-xs font-semibold text-gray-700">Legend</h3>
 	<div class="grid grid-cols-2 gap-x-4 gap-y-0.5">
 		{#each crops as crop}
