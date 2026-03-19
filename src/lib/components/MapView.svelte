@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { computeBboxLatLon } from '$lib/geo';
+	import Legend from './Legend.svelte';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
@@ -96,6 +97,7 @@
 
 <div class="relative h-full w-full">
 	<div bind:this={mapContainer} class="h-full w-full"></div>
+	<Legend />
 	{#if loading}
 		<div
 			class="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-white/40"
