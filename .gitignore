@@ -19,6 +19,9 @@ Thumbs.db
 .claude/
 .superpowers/
 
+# Git worktrees
+.worktrees/
+
 # Env
 .env
 .env.*
