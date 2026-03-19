@@ -17,40 +17,54 @@ related:
 
 ## What This Project Is
 
-**field-finder** is a SvelteKit webapp that lets users explore USDA crop data overlaid on an interactive map. It replaces a clunky Python CLI (`../ff-py/ff.py`) with a real-time, browser-based experience.
+**field-finder** is a SvelteKit webapp that lets users explore USDA crop data overlaid on an interactive map. It replaces a clunky Python CLI (`../ff-py/ff.py`) with a real-time, browser-based experience. Primary use case: upland bird hunting scouting.
 
 ## Current State
 
-- **Phase**: Design & planning complete — ready to begin implementation
-- **What exists**: Full SvelteKit project scaffolded with npm, TypeScript, Prettier, ESLint, Vitest, Tailwind CSS, Drizzle (SQLite/better-sqlite3)
-- **Database**: Drizzle configured, `DATABASE_URL=local.db` in `.env` — no schema defined yet (deferred until needed)
-- **What doesn't exist yet**: Any app-specific code — routes, components, API endpoints, map integration
-- **Design spec**: `docs/superpowers/specs/2026-03-17-initial-webapp-design.md` — approved
-- **Implementation plan**: `docs/superpowers/plans/2026-03-17-initial-webapp.md` — 16 tasks, reviewed and approved
+- **Phase**: Initial webapp (v1) implemented and in PR review
+- **Branch**: `feature/initial-webapp` — PR #1 open against `main`
+- **Worktree**: `.worktrees/initial-webapp`
+- **GitHub**: https://github.com/wpknox/field-finder
 
-## Core User Flow (Target)
+## What's Built (v1)
 
-1. User types an address or drops a pin on the map
-2. Selects a year (1997–2024) and radius (miles)
-3. Optionally filters to specific crop types via checkboxes
-4. Server fetches CDL data and returns a PNG overlay
-5. PNG is rendered on the Leaflet map with a color legend
+All 16 planned tasks are complete:
 
-## Key Technical Facts to Remember
+- Collapsible left sidebar with all controls
+- Address search (Nominatim geocoding) + lat/lon coordinate input
+- Lat/lon display below search bar, updated on every location change
+- Interactive Leaflet map with click-to-set-location
+- Radius slider (1–50 mi, amber warning above 15)
+- Year dropdown (1997–2024)
+- Crop filter checkboxes with color swatches (localStorage persisted)
+- Hint when no crops selected ("all crop data will be shown")
+- Explicit Search button (no auto-search)
+- Real-time bounding box preview rectangle on map
+- CDL PNG crop overlay (proxied through server as base64 to avoid CORS)
+- Collapsible color legend on map
+- Location marker
+- Right-click waypoints (named, persisted to localStorage)
+- Server-side CDL API proxy (EPSG:4326→5070 projection, XML parsing)
+- Server-side Nominatim proxy with rate limiting
+- ErrorToast component (dismissable, auto-dismisses after 5s)
+- localStorage persistence for all user state
+
+## Key Technical Facts
 
 - CDL API calls **must be server-side** — CORS blocks browser-direct requests
-- Input coordinates: EPSG:4326 → must project to EPSG:5070 (Albers) for CDL bbox
-- CDL API is slow (seconds per request) — the UI must show loading state
-- Nominatim geocoding: 1 req/sec rate limit, requires `User-Agent` header
-- The CDL PNG is served from NASS servers and loaded by Leaflet directly in the browser
+- **PNG is also proxied through the server** as a base64 data URL — NASS servers don't send CORS headers
+- Input coordinates: EPSG:4326 → projected to EPSG:5070 (Albers) for CDL bbox via proj4
+- CDL API is slow (seconds per request) — loading overlay shown during search
+- Nominatim: 1 req/sec rate limit, `User-Agent: FieldFinder/1.0`
+- `GetCDLImage` returns `<returnURLArray>` (not `<returnURL>`) — regex handles both
+- Svelte 5 runes used throughout: `$state`, `$effect`, `$derived`, `$props`, `$bindable`
+- Leaflet loaded via dynamic import inside `onMount` (SSR safety)
+- `mapReady = $state(false)` sentinel bridges async Leaflet init with `$effect` reactivity
 
 ## Active Work / What We're Doing Now
 
-_(update this section at the start and end of each session)_
-
-- Design spec and 16-task implementation plan are complete and committed.
-- **Next step**: Begin executing the plan (Task 1: install Leaflet + proj4 dependencies).
-- User has not yet chosen execution mode (subagent-driven vs inline). Ask at session start.
+- PR #1 open, ready for review or merge
+- No active in-progress tasks
 
 ## People / Roles
 
