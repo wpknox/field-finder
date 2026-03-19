@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import MapView from '$lib/components/MapView.svelte';
+	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { getSidebarCollapsed, saveSidebarCollapsed } from '$lib/localStorage';
 	import { onMount } from 'svelte';
 
@@ -23,11 +24,17 @@
 		// Will be wired up to set location marker in later tasks
 		console.log('Map clicked:', lat, lon);
 	}
+
+	function handleLocationSelect(lat: number, lon: number, name?: string) {
+		mapCenter = [lat, lon];
+		mapZoom = 12;
+		// Will set location marker in MapView task
+	}
 </script>
 
 <div class="flex h-screen w-screen overflow-hidden">
 	<Sidebar bind:collapsed={sidebarCollapsed}>
-		<p class="text-sm text-gray-500">Controls will go here.</p>
+		<SearchBar onLocationSelect={handleLocationSelect} />
 	</Sidebar>
 
 	<main class="relative flex-1">
