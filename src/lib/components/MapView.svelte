@@ -38,6 +38,8 @@
 	const waypointMarkers = new Map<number, import('leaflet').Marker>();
 	const waypointData = new Map<number, Waypoint>(); // id → waypoint
 	let waypointIdCounter = 0;
+	const cleanupFns: Array<() => void> = [];
+	let restoredFromStorage = false;
 
 	onMount(() => {
 		import('leaflet').then((L) => {
@@ -63,20 +65,20 @@
 		});
 
 		return () => {
+			cleanupFns.forEach((fn) => fn());
 			map?.remove();
 		};
 	});
 
 	// Sync markers with waypoints from localStorage on load
 	$effect(() => {
-		if (!mapReady) return;
+		if (!mapReady || restoredFromStorage) return;
+		restoredFromStorage = true;
 		import('leaflet').then((L) => {
-			waypoints.forEach((wp, idx) => {
-				if (!waypointMarkers.has(idx)) {
-					const id = waypointIdCounter++;
-					waypointData.set(id, wp);
-					addWaypointMarker(L, map!, wp, id);
-				}
+			waypoints.forEach((wp) => {
+				const id = waypointIdCounter++;
+				waypointData.set(id, wp);
+				addWaypointMarker(L, map!, wp, id);
 			});
 		});
 	});
@@ -185,6 +187,10 @@
 
 		document.addEventListener('wp-save', handleSave);
 		document.addEventListener('wp-delete', handleDelete);
+		cleanupFns.push(
+			() => document.removeEventListener('wp-save', handleSave),
+			() => document.removeEventListener('wp-delete', handleDelete)
+		);
 	}
 </script>
 
