@@ -97,3 +97,43 @@ related:
 **Decision:** `computeBboxLatLon` lives in `src/lib/geo.ts` (no proj4 dependency) so both client (MapView bounding box rectangle) and server (coordinate projection) can import it.
 **Reason:** The client needs this function to draw the real-time bounding box preview on the map. If it lived in `src/lib/server/`, client-side code couldn't import it.
 **Alternatives considered:** Duplicating the formula in MapView; keeping all coordinate math server-only.
+
+---
+
+### [2026-03-18] Proxy CDL PNG through server as base64 data URL
+
+**Decision:** After `GetCDLImage` returns a PNG URL, the server fetches the PNG, encodes it as base64, and returns a `data:image/png;base64,...` string to the client. Leaflet renders the data URL directly.
+**Reason:** NASS servers (`nassgeodata.gmu.edu`) do not send CORS headers. Leaflet loading the PNG directly from the browser fails with a CORS error even though the HTTP response succeeds (status 200). Proxying through the server eliminates the CORS issue entirely.
+**Alternatives considered:** A separate `/api/proxy-image?url=...` endpoint (extra round-trip); `crossOrigin: 'anonymous'` on the Leaflet overlay (doesn't help when the server sends no CORS headers).
+
+---
+
+### [2026-03-18] `GetCDLImage` returns `<returnURLArray>`, not `<returnURL>`
+
+**Decision:** `parseReturnUrl` uses the regex `/<returnURL(?:Array)?>(.*?)<\/returnURL(?:Array)?>/` to handle both tag names.
+**Reason:** Discovered at runtime — `GetCDLFile` and `ExtractCDLByValues` return `<returnURL>` but `GetCDLImage` returns `<returnURLArray>`. The CDL API documentation does not clearly distinguish these. A single flexible regex is cleaner than two separate parsers.
+**Alternatives considered:** Separate `parseReturnUrlArray` function; string replace before parsing.
+
+---
+
+### [2026-03-18] `mapReady` sentinel to bridge async Leaflet init with Svelte 5 `$effect`
+
+**Decision:** A `mapReady = $state(false)` flag is set to `true` inside the Leaflet import `.then()` callback. All `$effect` blocks that need the map check `if (!mapReady) return` as their first line.
+**Reason:** Leaflet must be loaded via dynamic import in `onMount` (SSR safety). `$effect` runs synchronously and reactively, but the Leaflet `Map` instance only exists after the async import resolves. The sentinel makes the effects re-run once Leaflet is ready without polling or manual coordination.
+**Alternatives considered:** Storing the Leaflet instance as `$state` and checking `if (!map)` directly (works but less explicit); async `onMount` (causes TypeScript error — cleanup return type becomes `Promise<() => void>` instead of `() => void`).
+
+---
+
+### [2026-03-18] Sync `onMount` with `.then()` for Leaflet import
+
+**Decision:** `onMount(() => { import('leaflet').then(...); return () => map?.remove(); })` — sync function, cleanup returned immediately.
+**Reason:** Svelte's `onMount` expects `void | (() => void)`. An `async` `onMount` returns `Promise<() => void>`, which Svelte ignores — the cleanup function never runs. Using `.then()` inside a sync `onMount` lets the cleanup be returned correctly while still handling the async import.
+**Alternatives considered:** `async onMount` (cleanup silently dropped); top-level `import` of Leaflet (breaks SSR).
+
+---
+
+### [2026-03-18] Stable session ID counter for waypoint markers
+
+**Decision:** Waypoints use an incrementing integer counter (`waypointIdCounter`) as a stable session ID. Two parallel Maps — `waypointData: Map<number, Waypoint>` and `waypointMarkers: Map<number, Marker>` — are keyed by this ID.
+**Reason:** After a waypoint is deleted, array indices shift. Event listeners for save/delete are closed over the ID at creation time, so using array index caused listeners to target wrong waypoints after deletions. A stable counter ID stays correct across deletions.
+**Alternatives considered:** Array index as key (breaks after deletion); random UUID (works, but overkill for a session-scoped structure).
