@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { computeBboxLatLon } from '$lib/geo';
 	import Legend from './Legend.svelte';
+	import type { Waypoint } from '$lib/localStorage';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
@@ -11,6 +12,7 @@
 		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
 		loading = false,
 		errorMessage = '',
+		waypoints = $bindable<Waypoint[]>([]),
 		onMapClick
 	}: {
 		center?: [number, number];
@@ -20,6 +22,7 @@
 		overlayBounds?: [[number, number], [number, number]];
 		loading?: boolean;
 		errorMessage?: string;
+		waypoints?: Waypoint[];
 		onMapClick?: (lat: number, lon: number) => void;
 	} = $props();
 
@@ -30,6 +33,11 @@
 	let marker: import('leaflet').Marker | undefined;
 	let bboxRect: import('leaflet').Rectangle | undefined;
 	let overlay: import('leaflet').ImageOverlay | undefined;
+
+	// Stable per-session ID counter for waypoint markers
+	const waypointMarkers = new Map<number, import('leaflet').Marker>();
+	const waypointData = new Map<number, Waypoint>(); // id → waypoint
+	let waypointIdCounter = 0;
 
 	onMount(() => {
 		import('leaflet').then((L) => {
@@ -43,12 +51,34 @@
 				onMapClick?.(e.latlng.lat, e.latlng.lng);
 			});
 
+			map.on('contextmenu', (e: import('leaflet').LeafletMouseEvent) => {
+				const id = waypointIdCounter++;
+				const waypoint: Waypoint = { lat: e.latlng.lat, lon: e.latlng.lng };
+				waypointData.set(id, waypoint);
+				waypoints = [...waypointData.values()];
+				addWaypointMarker(L, map!, waypoint, id);
+			});
+
 			mapReady = true;
 		});
 
 		return () => {
 			map?.remove();
 		};
+	});
+
+	// Sync markers with waypoints from localStorage on load
+	$effect(() => {
+		if (!mapReady) return;
+		import('leaflet').then((L) => {
+			waypoints.forEach((wp, idx) => {
+				if (!waypointMarkers.has(idx)) {
+					const id = waypointIdCounter++;
+					waypointData.set(id, wp);
+					addWaypointMarker(L, map!, wp, id);
+				}
+			});
+		});
 	});
 
 	// Location marker — updates when center changes
@@ -93,6 +123,69 @@
 			);
 		});
 	});
+
+	function addWaypointMarker(
+		L: typeof import('leaflet'),
+		map: import('leaflet').Map,
+		waypoint: Waypoint,
+		id: number
+	) {
+		const leafletMarker = L.marker([waypoint.lat, waypoint.lon], {
+			icon: L.divIcon({
+				className: '',
+				html: '<div style="width:12px;height:12px;background:#2563eb;border:2px solid white;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
+				iconSize: [12, 12],
+				iconAnchor: [6, 6]
+			})
+		}).addTo(map);
+
+		const updatePopup = (name?: string) => {
+			const nameVal = name ?? '';
+			leafletMarker.bindPopup(`
+				<div style="min-width:160px">
+					<input id="wp-name-${id}" type="text" value="${nameVal.replace(/"/g, '&quot;')}"
+						placeholder="Name this waypoint"
+						style="width:100%;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px" />
+					<div style="display:flex;gap:6px">
+						<button onclick="document.dispatchEvent(new CustomEvent('wp-save',{detail:{id:${id},name:document.getElementById('wp-name-${id}').value}}))"
+							style="flex:1;padding:4px;background:#16a34a;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Save</button>
+						<button onclick="document.dispatchEvent(new CustomEvent('wp-delete',{detail:{id:${id}}}))"
+							style="flex:1;padding:4px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Delete</button>
+					</div>
+				</div>
+			`);
+		};
+
+		updatePopup(waypoint.name);
+		waypointMarkers.set(id, leafletMarker);
+
+		const handleSave = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail.id !== id) return;
+			const existing = waypointData.get(id);
+			if (existing) {
+				const updated = { ...existing, name: detail.name };
+				waypointData.set(id, updated);
+				waypoints = [...waypointData.values()];
+				updatePopup(detail.name);
+			}
+			leafletMarker.closePopup();
+		};
+
+		const handleDelete = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail.id !== id) return;
+			leafletMarker.remove();
+			waypointMarkers.delete(id);
+			waypointData.delete(id);
+			waypoints = [...waypointData.values()];
+			document.removeEventListener('wp-save', handleSave);
+			document.removeEventListener('wp-delete', handleDelete);
+		};
+
+		document.addEventListener('wp-save', handleSave);
+		document.addEventListener('wp-delete', handleDelete);
+	}
 </script>
 
 <div class="relative h-full w-full">

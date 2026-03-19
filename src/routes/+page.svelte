@@ -13,7 +13,9 @@
 		getSidebarCollapsed, saveSidebarCollapsed,
 		getLastLocation, saveLastLocation,
 		getLastRadius, saveLastRadius,
-		getCropFilters, saveCropFilters
+		getCropFilters, saveCropFilters,
+		getWaypoints, saveWaypoints,
+		type Waypoint
 	} from '$lib/localStorage';
 
 	let sidebarCollapsed = $state(false);
@@ -27,6 +29,7 @@
 	let overlayBounds = $state<[[number, number], [number, number]] | undefined>(undefined);
 	let errorMessage = $state('');
 	let hasLocation = $state(false);
+	let waypoints = $state<Waypoint[]>([]);
 
 	onMount(() => {
 		const savedCollapsed = getSidebarCollapsed(localStorage);
@@ -44,12 +47,16 @@
 
 		const savedFilters = getCropFilters(localStorage);
 		if (savedFilters) cropFilters = savedFilters as Record<CropKey, boolean>;
+
+		const savedWaypoints = getWaypoints(localStorage);
+		if (savedWaypoints.length > 0) waypoints = savedWaypoints;
 	});
 
 	// Persist state changes to localStorage
 	$effect(() => { saveSidebarCollapsed(sidebarCollapsed, localStorage); });
 	$effect(() => { saveLastRadius(radius, localStorage); });
 	$effect(() => { saveCropFilters(cropFilters, localStorage); });
+	$effect(() => { saveWaypoints(waypoints, localStorage); });
 
 	function handleLocationSelect(lat: number, lon: number, _name?: string) {
 		mapCenter = [lat, lon];
@@ -123,6 +130,7 @@
 			{overlayBounds}
 			{loading}
 			{errorMessage}
+			bind:waypoints
 			onMapClick={handleMapClick}
 		/>
 	</main>
