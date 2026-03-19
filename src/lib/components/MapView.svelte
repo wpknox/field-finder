@@ -123,6 +123,9 @@
 			overlay = L.imageOverlay(overlayUrl, overlayBounds!, { crossOrigin: 'anonymous' }).addTo(
 				map!
 			);
+			overlay.on('error', () => {
+				errorMessage = 'Failed to load crop image — the data may not be available for this area';
+			});
 		});
 	});
 

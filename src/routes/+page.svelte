@@ -102,6 +102,10 @@
 			}
 
 			const data = await resp.json();
+			if (!data.pngUrl) {
+				errorMessage = `No crop data available for this area in ${year}`;
+				return;
+			}
 			overlayUrl = data.pngUrl;
 			overlayBounds = data.bounds;
 		} catch {
