@@ -4,10 +4,20 @@
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
+		radius = 10,
+		overlayUrl = '',
+		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
+		loading = false,
+		errorMessage = '',
 		onMapClick
 	}: {
 		center?: [number, number];
 		zoom?: number;
+		radius?: number;
+		overlayUrl?: string;
+		overlayBounds?: [[number, number], [number, number]];
+		loading?: boolean;
+		errorMessage?: string;
 		onMapClick?: (lat: number, lon: number) => void;
 	} = $props();
 
