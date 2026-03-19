@@ -23,7 +23,26 @@
 </script>
 
 <fieldset>
-	<legend class="mb-1 text-sm font-semibold text-gray-700">Crop Types</legend>
+	<div class="mb-1 flex items-center justify-between">
+		<legend class="text-sm font-semibold text-gray-700">Crop Types</legend>
+		<div class="flex gap-2">
+			<button
+				type="button"
+				onclick={() => crops.forEach((c) => (selected[c.key] = true))}
+				class="text-xs text-blue-600 hover:underline"
+			>
+				Select All
+			</button>
+			<span class="text-xs text-gray-300">|</span>
+			<button
+				type="button"
+				onclick={() => crops.forEach((c) => (selected[c.key] = false))}
+				class="text-xs text-blue-600 hover:underline"
+			>
+				Clear All
+			</button>
+		</div>
+	</div>
 	<div class="flex flex-col gap-1">
 		{#each crops as crop (crop.key)}
 			<label class="flex items-center gap-2 text-sm text-gray-700">

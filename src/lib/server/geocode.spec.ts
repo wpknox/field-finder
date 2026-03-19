@@ -8,17 +8,18 @@ describe('buildNominatimUrl', () => {
 		expect(url).toContain('q=Eustis%2C+NE');
 		expect(url).toContain('format=json');
 		expect(url).toContain('limit=5');
+		expect(url).toContain('countrycodes=us');
 	});
 });
 
 describe('parseNominatimResults', () => {
-	it('extracts display_name, lat, lon from Nominatim response', () => {
+	it('extracts displayName, lat, lon from Nominatim response', () => {
 		const raw = [
 			{ display_name: 'Eustis, Frontier County, NE', lat: '40.67', lon: '-100.03', otherField: 'x' }
 		];
 		const results = parseNominatimResults(raw);
 		expect(results).toEqual([
-			{ display_name: 'Eustis, Frontier County, NE', lat: 40.67, lon: -100.03 }
+			{ displayName: 'Eustis, Frontier County, NE', lat: 40.67, lon: -100.03 }
 		]);
 	});
 

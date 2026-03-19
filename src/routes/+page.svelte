@@ -29,13 +29,15 @@
 	let radius = $state(10);
 	let year = $state(2024);
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
-	let loading = $state(false);
+	let loadingMessage = $state('');
+	let loading = $derived(loadingMessage !== '');
 	let overlayUrl = $state('');
 	let overlayBounds = $state<[[number, number], [number, number]] | undefined>(undefined);
 	let errorMessage = $state('');
 	let hasLocation = $state(false);
 	let searchQuery = $state('');
 	let waypoints = $state<Waypoint[]>([]);
+	let panVersion = $state(0);
 
 	onMount(() => {
 		const savedCollapsed = getSidebarCollapsed(localStorage);
@@ -76,6 +78,7 @@
 		mapCenter = [lat, lon];
 		mapZoom = 12;
 		hasLocation = true;
+		panVersion++;
 		saveLastLocation({ lat, lon }, localStorage);
 	}
 
@@ -89,7 +92,7 @@
 	async function handleSearch() {
 		if (!hasLocation) return;
 
-		loading = true;
+		loadingMessage = 'Starting...';
 		errorMessage = '';
 
 		// Collect selected crop IDs
@@ -110,23 +113,37 @@
 				})
 			});
 
-			if (!resp.ok) {
-				const err = await resp.json().catch(() => ({ message: 'Unknown error' }));
-				errorMessage = err.message || "Couldn't fetch crop data — try again";
+			if (!resp.ok || !resp.body) {
+				errorMessage = "Couldn't fetch crop data — try again";
 				return;
 			}
 
-			const data = await resp.json();
-			if (!data.pngUrl) {
-				errorMessage = `No crop data available for this area in ${year}`;
-				return;
+			const reader = resp.body.getReader();
+			const decoder = new TextDecoder();
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				// SSE lines: "data: {...}\n\n"
+				for (const line of decoder.decode(value).split('\n')) {
+					if (!line.startsWith('data: ')) continue;
+					const event = JSON.parse(line.slice(6));
+
+					if (event.type === 'progress') {
+						loadingMessage = event.message;
+					} else if (event.type === 'done') {
+						overlayUrl = event.pngUrl;
+						overlayBounds = event.bounds;
+					} else if (event.type === 'error') {
+						errorMessage = event.message || "Couldn't fetch crop data — try again";
+					}
+				}
 			}
-			overlayUrl = data.pngUrl;
-			overlayBounds = data.bounds;
 		} catch {
 			errorMessage = "Couldn't fetch crop data — try again";
 		} finally {
-			loading = false;
+			loadingMessage = '';
 		}
 	}
 </script>
@@ -151,7 +168,8 @@
 			{radius}
 			{overlayUrl}
 			{overlayBounds}
-			{loading}
+			{loadingMessage}
+			{panVersion}
 			bind:errorMessage
 			bind:waypoints
 			onMapClick={handleMapClick}

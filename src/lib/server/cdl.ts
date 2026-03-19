@@ -34,19 +34,24 @@ export interface CdlRequest {
 	crops: number[];
 }
 
+export type CdlProgressStep = 'fetching' | 'extracting' | 'preparing';
+
 /**
  * Execute the CDL API call chain:
  * 1. GetCDLFile → raster URL
  * 2. ExtractCDLByValues → filtered raster URL (if crops specified)
  * 3. GetCDLImage → PNG URL
  *
- * Accepts an optional fetch function for testing.
+ * Accepts an optional fetch function for testing and an optional onProgress
+ * callback invoked before each step so callers can stream progress to clients.
  */
 export async function fetchCdlData(
 	request: CdlRequest,
-	fetchFn: typeof fetch = fetch
+	fetchFn: typeof fetch = fetch,
+	onProgress?: (step: CdlProgressStep) => void
 ): Promise<string> {
 	// Step 1: Get raster file
+	onProgress?.('fetching');
 	const cdlFileUrl = buildCdlFileUrl(request.year, request.albers);
 	const rasterResp = await fetchFn(cdlFileUrl);
 	if (!rasterResp.ok) {
@@ -56,6 +61,7 @@ export async function fetchCdlData(
 
 	// Step 2: Filter by crop values (if any)
 	if (request.crops.length > 0) {
+		onProgress?.('extracting');
 		const extractUrl = buildExtractUrl(rasterUrl, request.crops);
 		const extractResp = await fetchFn(extractUrl);
 		if (!extractResp.ok) {
@@ -65,6 +71,7 @@ export async function fetchCdlData(
 	}
 
 	// Step 3: Get PNG image
+	onProgress?.('preparing');
 	const imageUrl = buildImageUrl(rasterUrl);
 	const imageResp = await fetchFn(imageUrl);
 	if (!imageResp.ok) {

@@ -9,7 +9,7 @@
 		onLocationSelect: (lat: number, lon: number, name?: string) => void;
 	} = $props();
 
-	let results = $state<Array<{ display_name: string; lat: number; lon: number }>>([]);
+	let results = $state<Array<{ displayName: string; lat: number; lon: number }>>([]);
 	let showDropdown = $state(false);
 	let error = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -75,10 +75,10 @@
 		}
 	}
 
-	function selectResult(result: { display_name: string; lat: number; lon: number }) {
-		query = result.display_name;
+	function selectResult(result: { displayName: string; lat: number; lon: number }) {
+		query = result.displayName;
 		showDropdown = false;
-		onLocationSelect(result.lat, result.lon, result.display_name);
+		onLocationSelect(result.lat, result.lon, result.displayName);
 	}
 
 	function formatCoords(lat: number, lon: number): string {
@@ -117,7 +117,7 @@
 						class="w-full px-3 py-2 text-left text-sm hover:bg-blue-50"
 						onmousedown={() => selectResult(result)}
 					>
-						{result.display_name}
+						{result.displayName}
 					</button>
 				</li>
 			{/each}

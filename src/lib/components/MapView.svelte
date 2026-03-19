@@ -11,7 +11,8 @@
 		radius = 10,
 		overlayUrl = '',
 		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
-		loading = false,
+		loadingMessage = '',
+		panVersion = 0,
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
 		onMapClick
@@ -21,7 +22,8 @@
 		radius?: number;
 		overlayUrl?: string;
 		overlayBounds?: [[number, number], [number, number]];
-		loading?: boolean;
+		loadingMessage?: string;
+		panVersion?: number;
 		errorMessage?: string;
 		waypoints?: Waypoint[];
 		onMapClick?: (lat: number, lon: number) => void;
@@ -35,7 +37,10 @@
 	let bboxRect: import('leaflet').Rectangle | undefined;
 	let overlay: import('leaflet').ImageOverlay | undefined;
 
-	// Stable per-session ID counter for waypoint markers
+	// Internal Leaflet tracking maps — intentionally plain Map, not SvelteMap.
+	// The UI reads from the `waypoints` $state array; these maps are only used
+	// for marker/data lookup and cleanup. Making them reactive would add overhead
+	// and risk triggering unintended $effect re-runs.
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const waypointMarkers = new Map<number, import('leaflet').Marker>();
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -61,7 +66,8 @@
 				const waypoint: Waypoint = { lat: e.latlng.lat, lon: e.latlng.lng };
 				waypointData.set(id, waypoint);
 				waypoints = [...waypointData.values()];
-				addWaypointMarker(L, map!, waypoint, id);
+				const wpMarker = addWaypointMarker(L, map!, waypoint, id);
+				wpMarker.openPopup();
 			});
 
 			mapReady = true;
@@ -86,7 +92,7 @@
 		});
 	});
 
-	// Location marker — updates when center changes
+	// Location marker — updates when center changes; draggable so user can nudge it
 	$effect(() => {
 		if (!mapReady || !map) return;
 		const [lat, lon] = center;
@@ -94,9 +100,35 @@
 			marker.setLatLng([lat, lon]);
 		} else {
 			import('leaflet').then((L) => {
-				marker = L.marker([lat, lon]).addTo(map!);
+				marker = L.marker([lat, lon], { draggable: true }).addTo(map!);
+				// Live bbox update during drag — directly manipulates bboxRect without
+				// touching `center` state to avoid calling setLatLng mid-drag.
+				marker.on('drag', () => {
+					const { lat: newLat, lng: newLon } = marker!.getLatLng();
+					if (bboxRect) {
+						const bbox = computeBboxLatLon(newLat, newLon, radius);
+						bboxRect.setBounds([
+							[bbox.south, bbox.west],
+							[bbox.north, bbox.east]
+						]);
+					}
+				});
+				marker.on('dragend', () => {
+					const { lat: newLat, lng: newLon } = marker!.getLatLng();
+					center = [newLat, newLon];
+					onMapClick?.(newLat, newLon);
+				});
 			});
 		}
+	});
+
+	// Pan map when the parent signals a new location was selected (address search / lat-lon input).
+	// panVersion is only incremented by handleLocationSelect, not by map clicks or marker drag,
+	// so this won't fight with interactions where the map is already at the right position.
+	$effect(() => {
+		if (!mapReady || !map || panVersion === 0) return;
+		const [lat, lon] = center;
+		map.panTo([lat, lon]);
 	});
 
 	// Bounding box rectangle — updates when center or radius changes
@@ -132,36 +164,52 @@
 		});
 	});
 
+	/** Returns the HTML string for a waypoint dot marker icon. */
+	function waypointIconHtml(): string {
+		return '<div style="width:12px;height:12px;background:#2563eb;border:2px solid white;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>';
+	}
+
+	/**
+	 * Returns the HTML string for a waypoint popup.
+	 *
+	 * Note: Leaflet popups are rendered outside Svelte's component tree, so a plain
+	 * HTML string is the only way to inject content. Save/delete actions are bridged
+	 * back into Svelte via CustomEvents dispatched on `document`.
+	 */
+	function waypointPopupHtml(id: number, name: string): string {
+		const escapedName = name.replace(/"/g, '&quot;');
+		return `
+			<div style="min-width:160px">
+				<input id="wp-name-${id}" type="text" value="${escapedName}"
+					placeholder="Name this waypoint"
+					style="width:100%;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px" />
+				<div style="display:flex;gap:6px">
+					<button onclick="document.dispatchEvent(new CustomEvent('wp-save',{detail:{id:${id},name:document.getElementById('wp-name-${id}').value}}))"
+						style="flex:1;padding:4px;background:#16a34a;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Save</button>
+					<button onclick="document.dispatchEvent(new CustomEvent('wp-delete',{detail:{id:${id}}}))"
+						style="flex:1;padding:4px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Delete</button>
+				</div>
+			</div>
+		`;
+	}
+
 	function addWaypointMarker(
 		L: typeof import('leaflet'),
 		map: import('leaflet').Map,
 		waypoint: Waypoint,
 		id: number
-	) {
+	): import('leaflet').Marker {
 		const leafletMarker = L.marker([waypoint.lat, waypoint.lon], {
 			icon: L.divIcon({
 				className: '',
-				html: '<div style="width:12px;height:12px;background:#2563eb;border:2px solid white;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
+				html: waypointIconHtml(),
 				iconSize: [12, 12],
 				iconAnchor: [6, 6]
 			})
 		}).addTo(map);
 
 		const updatePopup = (name?: string) => {
-			const nameVal = name ?? '';
-			leafletMarker.bindPopup(`
-				<div style="min-width:160px">
-					<input id="wp-name-${id}" type="text" value="${nameVal.replace(/"/g, '&quot;')}"
-						placeholder="Name this waypoint"
-						style="width:100%;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:6px" />
-					<div style="display:flex;gap:6px">
-						<button onclick="document.dispatchEvent(new CustomEvent('wp-save',{detail:{id:${id},name:document.getElementById('wp-name-${id}').value}}))"
-							style="flex:1;padding:4px;background:#16a34a;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Save</button>
-						<button onclick="document.dispatchEvent(new CustomEvent('wp-delete',{detail:{id:${id}}}))"
-							style="flex:1;padding:4px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Delete</button>
-					</div>
-				</div>
-			`);
+			leafletMarker.bindPopup(waypointPopupHtml(id, name ?? ''));
 		};
 
 		updatePopup(waypoint.name);
@@ -197,18 +245,26 @@
 			() => document.removeEventListener('wp-save', handleSave),
 			() => document.removeEventListener('wp-delete', handleDelete)
 		);
+
+		return leafletMarker;
 	}
 </script>
 
 <div class="relative h-full w-full">
 	<div bind:this={mapContainer} class="h-full w-full"></div>
-	<Legend />
-	{#if loading}
+	<!-- Legend + map hint sit together at the bottom-left -->
+	<div class="absolute bottom-4 left-4 z-1000 flex items-end gap-3">
+		<Legend />
+		<p class="pointer-events-none mb-1 text-xs text-gray-400">
+			Right-click to add a waypoint &nbsp;·&nbsp; Drag the marker to reposition
+		</p>
+	</div>
+	{#if loadingMessage}
 		<div
 			class="pointer-events-none absolute inset-0 z-1000 flex items-center justify-center bg-white/40"
 		>
 			<span class="rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow"
-				>Loading crop data…</span
+				>{loadingMessage}</span
 			>
 		</div>
 	{/if}
