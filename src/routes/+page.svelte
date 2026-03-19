@@ -10,11 +10,16 @@
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { CROPS, type CropKey } from '$lib/crops';
 	import {
-		getSidebarCollapsed, saveSidebarCollapsed,
-		getLastLocation, saveLastLocation,
-		getLastRadius, saveLastRadius,
-		getCropFilters, saveCropFilters,
-		getWaypoints, saveWaypoints,
+		getSidebarCollapsed,
+		saveSidebarCollapsed,
+		getLastLocation,
+		saveLastLocation,
+		getLastRadius,
+		saveLastRadius,
+		getCropFilters,
+		saveCropFilters,
+		getWaypoints,
+		saveWaypoints,
 		type Waypoint
 	} from '$lib/localStorage';
 
@@ -53,12 +58,20 @@
 	});
 
 	// Persist state changes to localStorage
-	$effect(() => { saveSidebarCollapsed(sidebarCollapsed, localStorage); });
-	$effect(() => { saveLastRadius(radius, localStorage); });
-	$effect(() => { saveCropFilters(cropFilters, localStorage); });
-	$effect(() => { saveWaypoints(waypoints, localStorage); });
+	$effect(() => {
+		saveSidebarCollapsed(sidebarCollapsed, localStorage);
+	});
+	$effect(() => {
+		saveLastRadius(radius, localStorage);
+	});
+	$effect(() => {
+		saveCropFilters(cropFilters, localStorage);
+	});
+	$effect(() => {
+		saveWaypoints(waypoints, localStorage);
+	});
 
-	function handleLocationSelect(lat: number, lon: number, _name?: string) {
+	function handleLocationSelect(lat: number, lon: number) {
 		mapCenter = [lat, lon];
 		mapZoom = 12;
 		hasLocation = true;

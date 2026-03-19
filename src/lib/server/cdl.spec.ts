@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseReturnUrl, buildCdlFileUrl, buildExtractUrl, buildImageUrl, fetchCdlData } from './cdl';
+import {
+	parseReturnUrl,
+	buildCdlFileUrl,
+	buildExtractUrl,
+	buildImageUrl,
+	fetchCdlData
+} from './cdl';
 
 describe('URL builders', () => {
 	it('buildCdlFileUrl constructs correct URL with bbox', () => {
@@ -44,21 +50,19 @@ describe('parseReturnUrl', () => {
 
 describe('fetchCdlData', () => {
 	it('calls the CDL API chain and returns a PNG URL', async () => {
-		const mockFetch = vi.fn()
+		const mockFetch = vi
+			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(
@@ -75,16 +79,15 @@ describe('fetchCdlData', () => {
 	});
 
 	it('skips ExtractCDLByValues when no crops filter provided', async () => {
-		const mockFetch = vi.fn()
+		const mockFetch = vi
+			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(

@@ -31,9 +31,7 @@ describe('geocode', () => {
 	it('fetches and parses Nominatim results', async () => {
 		const mockFetch = vi.fn().mockResolvedValueOnce({
 			ok: true,
-			json: async () => [
-				{ display_name: 'Eustis, NE', lat: '40.67', lon: '-100.03' }
-			]
+			json: async () => [{ display_name: 'Eustis, NE', lat: '40.67', lon: '-100.03' }]
 		});
 
 		const results = await geocode('Eustis, NE', mockFetch as unknown as typeof fetch);

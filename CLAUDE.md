@@ -24,12 +24,12 @@ After reading, briefly summarize what you understand about the current state so 
 
 All living documents in `memory/` and `planning/` carry YAML frontmatter. Use these fields to locate and understand files without reading their full content:
 
-| Field | Purpose |
-| --- | --- |
-| `id` | Stable slug for cross-referencing (e.g. `context`, `decisions`, `features`) |
-| `type` | Category: `memory`, `planning`, or `skill` |
-| `description` | One-line summary of what the file contains |
-| `related` | List of other files relevant to this one |
+| Field         | Purpose                                                                     |
+| ------------- | --------------------------------------------------------------------------- |
+| `id`          | Stable slug for cross-referencing (e.g. `context`, `decisions`, `features`) |
+| `type`        | Category: `memory`, `planning`, or `skill`                                  |
+| `description` | One-line summary of what the file contains                                  |
+| `related`     | List of other files relevant to this one                                    |
 
 When told to "check context" or "check decisions", use the `id` field to locate the right file instantly.
 
@@ -58,29 +58,29 @@ The CLI flow is clunky — text prompts, no live preview, manual file management
 
 ### Key API Endpoints
 
-| Endpoint | Purpose |
-| --- | --- |
+| Endpoint                                            | Purpose                              |
+| --------------------------------------------------- | ------------------------------------ |
 | `GetCDLFile?year=YYYY&bbox=x_min,y_min,x_max,y_max` | Get raster file URL for bounding box |
-| `ExtractCDLByValues?file=<url>&values=<csv_ids>` | Filter to specific crop value IDs |
-| `GetCDLImage?files=<url>&format=png` | Get PNG image URL for a raster file |
+| `ExtractCDLByValues?file=<url>&values=<csv_ids>`    | Filter to specific crop value IDs    |
+| `GetCDLImage?files=<url>&format=png`                | Get PNG image URL for a raster file  |
 
 ### Crop Color Legend
 
-| Color | Crop | CDL Value |
-| --- | --- | --- |
-| Yellow | Corn | 1 |
-| Green | Soybeans | 5 |
-| Orange | Sorghum | 4 |
-| Brown | Winter Wheat | 24 |
-| Purple | Oats | 28 |
-| Magenta | Barley | 21 |
-| Light Yellow | Sunflower | 6 |
-| Light Green | Pasture | 176 |
-| Blue | Open Water | 111 |
-| Light Blue | Woody Wetlands/Rivers | 190 |
-| Gray | Fallow/Idle Cropland | 61 |
-| Pink | Alfalfa | 36 |
-| Light Brown | Spring Wheat | 23 |
+| Color        | Crop                  | CDL Value |
+| ------------ | --------------------- | --------- |
+| Yellow       | Corn                  | 1         |
+| Green        | Soybeans              | 5         |
+| Orange       | Sorghum               | 4         |
+| Brown        | Winter Wheat          | 24        |
+| Purple       | Oats                  | 28        |
+| Magenta      | Barley                | 21        |
+| Light Yellow | Sunflower             | 6         |
+| Light Green  | Pasture               | 176       |
+| Blue         | Open Water            | 111       |
+| Light Blue   | Woody Wetlands/Rivers | 190       |
+| Gray         | Fallow/Idle Cropland  | 61        |
+| Pink         | Alfalfa               | 36        |
+| Light Brown  | Spring Wheat          | 23        |
 
 ## Coordinate Math
 
@@ -138,22 +138,22 @@ field-finder/
 
 Skills live in `.claude/skills/<skill-name>/SKILL.md`. When a skill is relevant or requested, **read its SKILL.md in full before taking any action**.
 
-| Skill | Description | Path |
-| --- | --- | --- |
-| `brainstorming` | Turn ideas into approved designs before writing any code | `.claude/skills/brainstorming/SKILL.md` |
-| `dispatching-parallel-agents` | Delegate independent tasks to multiple agents simultaneously | `.claude/skills/dispatching-parallel-agents/SKILL.md` |
-| `executing-plans` | Implement a written plan with checkpoints and verification | `.claude/skills/executing-plans/SKILL.md` |
-| `finishing-a-development-branch` | Wrap up a branch: verify tests, then merge / PR / keep / discard | `.claude/skills/finishing-a-development-branch/SKILL.md` |
-| `receiving-code-review` | Evaluate and act on code review feedback with technical rigor | `.claude/skills/receiving-code-review/SKILL.md` |
-| `requesting-code-review` | Request a structured code review via subagent | `.claude/skills/requesting-code-review/SKILL.md` |
-| `subagent-driven-development` | Implement a plan using per-task subagents with spec + quality review | `.claude/skills/subagent-driven-development/SKILL.md` |
-| `systematic-debugging` | Debug by root cause investigation before attempting any fix | `.claude/skills/systematic-debugging/SKILL.md` |
-| `test-driven-development` | Write failing test first, then minimal code to pass (red-green-refactor) | `.claude/skills/test-driven-development/SKILL.md` |
-| `using-git-worktrees` | Create isolated git workspaces for parallel branch development | `.claude/skills/using-git-worktrees/SKILL.md` |
-| `using-superpowers` | Protocol for when and how to invoke skills | `.claude/skills/using-superpowers/SKILL.md` |
-| `verification-before-completion` | Run fresh verification commands before claiming any work is done | `.claude/skills/verification-before-completion/SKILL.md` |
-| `writing-plans` | Write a detailed, TDD-structured implementation plan | `.claude/skills/writing-plans/SKILL.md` |
-| `writing-skills` | Create new reusable skill documentation using TDD principles | `.claude/skills/writing-skills/SKILL.md` |
-| `frontend-design` | Design and implement polished, accessible frontend UI | `.claude/skills/frontend-design/SKILL.md` |
-| `skill-creator` | Build well-structured, reliable, evaluated custom skills — **use this when creating any new skill** | `.claude/skills/skill-creator/SKILL.md` |
-| `theme-factory` | Generate consistent visual themes (colors, typography, spacing) | `.claude/skills/theme-factory/SKILL.md` |
+| Skill                            | Description                                                                                         | Path                                                     |
+| -------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `brainstorming`                  | Turn ideas into approved designs before writing any code                                            | `.claude/skills/brainstorming/SKILL.md`                  |
+| `dispatching-parallel-agents`    | Delegate independent tasks to multiple agents simultaneously                                        | `.claude/skills/dispatching-parallel-agents/SKILL.md`    |
+| `executing-plans`                | Implement a written plan with checkpoints and verification                                          | `.claude/skills/executing-plans/SKILL.md`                |
+| `finishing-a-development-branch` | Wrap up a branch: verify tests, then merge / PR / keep / discard                                    | `.claude/skills/finishing-a-development-branch/SKILL.md` |
+| `receiving-code-review`          | Evaluate and act on code review feedback with technical rigor                                       | `.claude/skills/receiving-code-review/SKILL.md`          |
+| `requesting-code-review`         | Request a structured code review via subagent                                                       | `.claude/skills/requesting-code-review/SKILL.md`         |
+| `subagent-driven-development`    | Implement a plan using per-task subagents with spec + quality review                                | `.claude/skills/subagent-driven-development/SKILL.md`    |
+| `systematic-debugging`           | Debug by root cause investigation before attempting any fix                                         | `.claude/skills/systematic-debugging/SKILL.md`           |
+| `test-driven-development`        | Write failing test first, then minimal code to pass (red-green-refactor)                            | `.claude/skills/test-driven-development/SKILL.md`        |
+| `using-git-worktrees`            | Create isolated git workspaces for parallel branch development                                      | `.claude/skills/using-git-worktrees/SKILL.md`            |
+| `using-superpowers`              | Protocol for when and how to invoke skills                                                          | `.claude/skills/using-superpowers/SKILL.md`              |
+| `verification-before-completion` | Run fresh verification commands before claiming any work is done                                    | `.claude/skills/verification-before-completion/SKILL.md` |
+| `writing-plans`                  | Write a detailed, TDD-structured implementation plan                                                | `.claude/skills/writing-plans/SKILL.md`                  |
+| `writing-skills`                 | Create new reusable skill documentation using TDD principles                                        | `.claude/skills/writing-skills/SKILL.md`                 |
+| `frontend-design`                | Design and implement polished, accessible frontend UI                                               | `.claude/skills/frontend-design/SKILL.md`                |
+| `skill-creator`                  | Build well-structured, reliable, evaluated custom skills — **use this when creating any new skill** | `.claude/skills/skill-creator/SKILL.md`                  |
+| `theme-factory`                  | Generate consistent visual themes (colors, typography, spacing)                                     | `.claude/skills/theme-factory/SKILL.md`                  |

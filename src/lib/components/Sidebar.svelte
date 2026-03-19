@@ -3,7 +3,9 @@
 </script>
 
 {#if !collapsed}
-	<aside class="flex h-full w-80 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4">
+	<aside
+		class="flex h-full w-80 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4"
+	>
 		<div class="flex items-center justify-between">
 			<h1 class="text-xl font-bold text-gray-800">Field Finder</h1>
 			<button

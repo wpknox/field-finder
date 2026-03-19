@@ -42,7 +42,7 @@ Contains all controls, top to bottom:
    - Default: all crops shown (all checkboxes checked). Users uncheck what they don't care about.
    - Checkbox state persisted to localStorage — user's filter preferences are restored on next visit.
 6. **Search button** — explicitly triggers the CDL data fetch. Disabled during loading.
-7. **Area Summary** *(deferred — see Server Architecture note)* — will show percentage breakdown per crop type. Requires raster processing server-side; not in initial build.
+7. **Area Summary** _(deferred — see Server Architecture note)_ — will show percentage breakdown per crop type. Requires raster processing server-side; not in initial build.
 8. **Collapse toggle** (◀/▶) — hides/shows the sidebar to maximize map space
 
 ### Map (fills remaining viewport)
@@ -99,6 +99,7 @@ Leaflet.js interactive map:
 Year comparison is valuable but adds complexity (doubles CDL API calls, overlay-switching UI). It is deferred to a follow-up iteration after the core search-and-overlay loop is solid. The `YearSelector` component in the initial build only shows a single year dropdown.
 
 **When implemented later:**
+
 1. User selects a "compare to" year alongside the primary year
 2. On Search, both years' crop data are fetched
 3. User can toggle between the two overlays — one visible at a time
@@ -147,19 +148,19 @@ Year comparison is valuable but adds complexity (doubles CDL API calls, overlay-
 ```ts
 // src/lib/crops.ts
 export const CROPS = {
-  sorghum:    { id: 4,   name: 'Sorghum',        color: '#FF8C00' },
-  winterWheat:{ id: 24,  name: 'Winter Wheat',    color: '#8B4513' },
-  springWheat:{ id: 23,  name: 'Spring Wheat',    color: '#D2B48C' },
-  corn:       { id: 1,   name: 'Corn',            color: '#FFFF00' },
-  soybeans:   { id: 5,   name: 'Soybeans',        color: '#008000' },
-  sunflower:  { id: 6,   name: 'Sunflower',       color: '#DAA520' },
-  oats:       { id: 28,  name: 'Oats',            color: '#800080' },
-  barley:     { id: 21,  name: 'Barley',          color: '#FF00FF' },
-  alfalfa:    { id: 36,  name: 'Alfalfa',         color: '#FFC0CB' },
-  pasture:    { id: 176, name: 'Pasture/Grass',   color: '#90EE90' },
-  fallow:     { id: 61,  name: 'Fallow/Idle',     color: '#808080' },
-  openWater:  { id: 111, name: 'Open Water',      color: '#4169E1' },
-  wetlands:   { id: 190, name: 'Wetlands/Rivers', color: '#ADD8E6' },
+	sorghum: { id: 4, name: 'Sorghum', color: '#FF8C00' },
+	winterWheat: { id: 24, name: 'Winter Wheat', color: '#8B4513' },
+	springWheat: { id: 23, name: 'Spring Wheat', color: '#D2B48C' },
+	corn: { id: 1, name: 'Corn', color: '#FFFF00' },
+	soybeans: { id: 5, name: 'Soybeans', color: '#008000' },
+	sunflower: { id: 6, name: 'Sunflower', color: '#DAA520' },
+	oats: { id: 28, name: 'Oats', color: '#800080' },
+	barley: { id: 21, name: 'Barley', color: '#FF00FF' },
+	alfalfa: { id: 36, name: 'Alfalfa', color: '#FFC0CB' },
+	pasture: { id: 176, name: 'Pasture/Grass', color: '#90EE90' },
+	fallow: { id: 61, name: 'Fallow/Idle', color: '#808080' },
+	openWater: { id: 111, name: 'Open Water', color: '#4169E1' },
+	wetlands: { id: 190, name: 'Wetlands/Rivers', color: '#ADD8E6' }
 } as const;
 ```
 
@@ -181,27 +182,27 @@ No database needed for the initial build.
 
 ### Svelte Components
 
-| Component | Responsibility |
-|---|---|
-| `+page.svelte` | Top-level layout: sidebar + map split |
-| `Sidebar.svelte` | Collapsible container for all controls |
-| `SearchBar.svelte` | Address autocomplete + lat/lon parsing |
-| `RadiusSlider.svelte` | Slider input with value display + warning text |
-| `YearSelector.svelte` | Primary year dropdown (compare-to added later) |
-| `CropFilter.svelte` | Checkboxes with color swatches, reads from `CROPS` config |
-| `SearchButton.svelte` | Triggers search, disabled during loading |
-| `AreaSummary.svelte` | Percentage bars per crop, reads from `CROPS` config *(deferred — needs raster processing)* |
-| `MapView.svelte` | Leaflet wrapper: overlays, markers, click events, legend |
-| `Legend.svelte` | Floating color legend on the map, reads from `CROPS` config |
-| `WaypointPopup.svelte` | Popup for naming/deleting waypoints |
+| Component              | Responsibility                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| `+page.svelte`         | Top-level layout: sidebar + map split                                                      |
+| `Sidebar.svelte`       | Collapsible container for all controls                                                     |
+| `SearchBar.svelte`     | Address autocomplete + lat/lon parsing                                                     |
+| `RadiusSlider.svelte`  | Slider input with value display + warning text                                             |
+| `YearSelector.svelte`  | Primary year dropdown (compare-to added later)                                             |
+| `CropFilter.svelte`    | Checkboxes with color swatches, reads from `CROPS` config                                  |
+| `SearchButton.svelte`  | Triggers search, disabled during loading                                                   |
+| `AreaSummary.svelte`   | Percentage bars per crop, reads from `CROPS` config _(deferred — needs raster processing)_ |
+| `MapView.svelte`       | Leaflet wrapper: overlays, markers, click events, legend                                   |
+| `Legend.svelte`        | Floating color legend on the map, reads from `CROPS` config                                |
+| `WaypointPopup.svelte` | Popup for naming/deleting waypoints                                                        |
 
 ### Server Modules (`src/lib/server/`)
 
-| Module | Responsibility |
-|---|---|
-| `cdl.ts` | CDL API client: raster fetch, crop filtering, PNG URL retrieval |
-| `geocode.ts` | Nominatim proxy with rate limiting |
-| `coordinates.ts` | EPSG:4326 ↔ 5070 projection, bounding box math |
+| Module           | Responsibility                                                  |
+| ---------------- | --------------------------------------------------------------- |
+| `cdl.ts`         | CDL API client: raster fetch, crop filtering, PNG URL retrieval |
+| `geocode.ts`     | Nominatim proxy with rate limiting                              |
+| `coordinates.ts` | EPSG:4326 ↔ 5070 projection, bounding box math                  |
 
 ---
 
@@ -209,15 +210,15 @@ No database needed for the initial build.
 
 All errors are shown inline — no modal dialogs.
 
-| Scenario | Behavior |
-|---|---|
-| CDL API timeout or failure | Error message on the map: "Couldn't fetch crop data — try again" |
-| Nominatim returns no results | Inline text below search bar: "No results found" |
-| Nominatim rate limit | Debounce autocomplete (300–500ms), queue server-side at 1 req/sec |
-| Invalid coordinates entered | Inline error below search bar if lat/lon is out of range |
-| Radius above 15 miles | Warning text below slider: "Larger areas may take longer to load" |
-| No crop data for year/area | Message on map: "No crop data available for this area in [year]" |
-| CDL PNG fails to load | Handle Leaflet image error, show message on map |
+| Scenario                     | Behavior                                                          |
+| ---------------------------- | ----------------------------------------------------------------- |
+| CDL API timeout or failure   | Error message on the map: "Couldn't fetch crop data — try again"  |
+| Nominatim returns no results | Inline text below search bar: "No results found"                  |
+| Nominatim rate limit         | Debounce autocomplete (300–500ms), queue server-side at 1 req/sec |
+| Invalid coordinates entered  | Inline error below search bar if lat/lon is out of range          |
+| Radius above 15 miles        | Warning text below slider: "Larger areas may take longer to load" |
+| No crop data for year/area   | Message on map: "No crop data available for this area in [year]"  |
+| CDL PNG fails to load        | Handle Leaflet image error, show message on map                   |
 
 ---
 

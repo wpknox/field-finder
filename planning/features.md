@@ -73,6 +73,7 @@ High-value features deferred from initial build:
 ## Requirements
 
 ### Functional
+
 - Must proxy CDL API calls server-side (CORS restriction)
 - Coordinate projection: input EPSG:4326 → bounding box EPSG:5070 (Albers) for CDL API
 - CDL API returns XML; must parse `returnURL` and `returnURLArray` elements
@@ -80,6 +81,7 @@ High-value features deferred from initial build:
 - Radius should be capped at a sensible max (50 miles?) to avoid huge/slow requests
 
 ### Non-Functional
+
 - Target user base: <20 people (small scale, no scaling concerns)
 - DB if used: SQLite (file-based, zero infra)
 - No paid API keys required for core functionality (Nominatim + CDL are free)

@@ -13,7 +13,7 @@
 		bind:value={year}
 		class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
 	>
-		{#each years as y}
+		{#each years as y (y)}
 			<option value={y}>{y}</option>
 		{/each}
 	</select>

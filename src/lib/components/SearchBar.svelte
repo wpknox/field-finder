@@ -95,8 +95,10 @@
 		<p class="mt-1 text-xs text-red-500">{error}</p>
 	{/if}
 	{#if showDropdown}
-		<ul class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-			{#each results as result}
+		<ul
+			class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+		>
+			{#each results as result (result.lat + ',' + result.lon)}
 				<li>
 					<button
 						type="button"

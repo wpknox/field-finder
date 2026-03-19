@@ -8,7 +8,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 	let body;
 	try {
 		body = await request.json();
-	} catch (err) {
+	} catch {
 		error(400, 'Request body must be valid JSON');
 	}
 
@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 		error(400, 'crops must be an array of CDL value IDs');
 	}
 	// Critical #3: Validate each crop value is a number
-	if (!crops.every(c => typeof c === 'number')) {
+	if (!crops.every((c) => typeof c === 'number')) {
 		error(400, 'Each crop value must be a number');
 	}
 
@@ -40,10 +40,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 
 	try {
 		// Fetch CDL data
-		const pngUrl = await fetchCdlData(
-			{ year, albers, crops },
-			fetch
-		);
+		const pngUrl = await fetchCdlData({ year, albers, crops }, fetch);
 
 		// Important #4: Validate pngUrl from CDL API
 		if (typeof pngUrl !== 'string' || pngUrl.trim() === '') {

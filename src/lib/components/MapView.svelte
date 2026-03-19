@@ -35,7 +35,9 @@
 	let overlay: import('leaflet').ImageOverlay | undefined;
 
 	// Stable per-session ID counter for waypoint markers
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const waypointMarkers = new Map<number, import('leaflet').Marker>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const waypointData = new Map<number, Waypoint>(); // id → waypoint
 	let waypointIdCounter = 0;
 	const cleanupFns: Array<() => void> = [];
@@ -204,7 +206,9 @@
 		<div
 			class="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-white/40"
 		>
-			<span class="rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow">Loading crop data…</span>
+			<span class="rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow"
+				>Loading crop data…</span
+			>
 		</div>
 	{/if}
 	{#if errorMessage}

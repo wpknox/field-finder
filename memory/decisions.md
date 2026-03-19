@@ -11,6 +11,7 @@ related:
 # Decision Log
 
 > **Rules for this file:**
+>
 > - Append only. Never edit or delete existing entries.
 > - One decision per entry, newest at the bottom.
 > - Each entry answers: What was decided? Why? What was the alternative?

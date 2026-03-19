@@ -31,15 +31,10 @@ function safeSet(key: string, value: unknown, storage?: Storage): void {
 }
 
 // Location
-export function saveLastLocation(
-	loc: { lat: number; lon: number },
-	storage?: Storage
-): void {
+export function saveLastLocation(loc: { lat: number; lon: number }, storage?: Storage): void {
 	safeSet(KEYS.location, loc, storage);
 }
-export function getLastLocation(
-	storage?: Storage
-): { lat: number; lon: number } | null {
+export function getLastLocation(storage?: Storage): { lat: number; lon: number } | null {
 	return safeGet(KEYS.location, storage);
 }
 
@@ -52,23 +47,15 @@ export function getLastRadius(storage?: Storage): number | null {
 }
 
 // Crop filters
-export function saveCropFilters(
-	filters: Record<string, boolean>,
-	storage?: Storage
-): void {
+export function saveCropFilters(filters: Record<string, boolean>, storage?: Storage): void {
 	safeSet(KEYS.crops, filters, storage);
 }
-export function getCropFilters(
-	storage?: Storage
-): Record<string, boolean> | null {
+export function getCropFilters(storage?: Storage): Record<string, boolean> | null {
 	return safeGet(KEYS.crops, storage);
 }
 
 // Sidebar
-export function saveSidebarCollapsed(
-	collapsed: boolean,
-	storage?: Storage
-): void {
+export function saveSidebarCollapsed(collapsed: boolean, storage?: Storage): void {
 	safeSet(KEYS.sidebar, collapsed, storage);
 }
 export function getSidebarCollapsed(storage?: Storage): boolean | null {

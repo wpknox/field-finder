@@ -47,10 +47,12 @@ src/
 ## Task 1: Install Dependencies & Configure Leaflet
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `src/app.html`
 
 New npm dependencies needed:
+
 - `leaflet` — map library
 - `@types/leaflet` — TypeScript types (devDep)
 - `proj4` — coordinate projection EPSG:4326↔5070
@@ -68,9 +70,12 @@ npm install -D @types/leaflet @types/proj4
 Add the Leaflet CSS CDN link to `src/app.html` inside the `<head>` tag, before `%sveltekit.head%`:
 
 ```html
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  crossorigin="" />
+<link
+	rel="stylesheet"
+	href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+	integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+	crossorigin=""
+/>
 ```
 
 - [ ] **Step 3: Verify dev server starts**
@@ -93,6 +98,7 @@ git commit -m "feat: install leaflet and proj4 dependencies"
 ## Task 2: Crop Configuration — Single Source of Truth
 
 **Files:**
+
 - Create: `src/lib/crops.ts`
 - Create: `src/lib/crops.spec.ts`
 
@@ -208,6 +214,7 @@ git commit -m "feat: add crop configuration with CDL IDs, names, and colors"
 ## Task 3: localStorage Persistence Helpers
 
 **Files:**
+
 - Create: `src/lib/localStorage.ts`
 - Create: `src/lib/localStorage.spec.ts`
 
@@ -348,15 +355,10 @@ function safeSet(key: string, value: unknown, storage?: Storage): void {
 }
 
 // Location
-export function saveLastLocation(
-	loc: { lat: number; lon: number },
-	storage?: Storage
-): void {
+export function saveLastLocation(loc: { lat: number; lon: number }, storage?: Storage): void {
 	safeSet(KEYS.location, loc, storage);
 }
-export function getLastLocation(
-	storage?: Storage
-): { lat: number; lon: number } | null {
+export function getLastLocation(storage?: Storage): { lat: number; lon: number } | null {
 	return safeGet(KEYS.location, storage);
 }
 
@@ -369,23 +371,15 @@ export function getLastRadius(storage?: Storage): number | null {
 }
 
 // Crop filters
-export function saveCropFilters(
-	filters: Record<string, boolean>,
-	storage?: Storage
-): void {
+export function saveCropFilters(filters: Record<string, boolean>, storage?: Storage): void {
 	safeSet(KEYS.crops, filters, storage);
 }
-export function getCropFilters(
-	storage?: Storage
-): Record<string, boolean> | null {
+export function getCropFilters(storage?: Storage): Record<string, boolean> | null {
 	return safeGet(KEYS.crops, storage);
 }
 
 // Sidebar
-export function saveSidebarCollapsed(
-	collapsed: boolean,
-	storage?: Storage
-): void {
+export function saveSidebarCollapsed(collapsed: boolean, storage?: Storage): void {
 	safeSet(KEYS.sidebar, collapsed, storage);
 }
 export function getSidebarCollapsed(storage?: Storage): boolean | null {
@@ -421,6 +415,7 @@ git commit -m "feat: add localStorage persistence helpers for user preferences"
 ## Task 4: Coordinate Projection & Bounding Box Math
 
 **Files:**
+
 - Create: `src/lib/geo.ts` — pure lat/lon bbox math (no proj4, shared with client)
 - Create: `src/lib/geo.spec.ts`
 - Create: `src/lib/server/coordinates.ts` — projection (proj4, server-only)
@@ -429,6 +424,7 @@ git commit -m "feat: add localStorage persistence helpers for user preferences"
 The lat/lon bbox function (`computeBboxLatLon`) lives in `src/lib/geo.ts` so the client (MapView) can import it to draw the bounding box rectangle without pulling in proj4. The server `coordinates.ts` re-exports it and adds Albers projection.
 
 The algorithm (matching `ff.py`):
+
 1. Compute bbox in lat/lon: `lat ± (miles / 69.0)`, `lon ± (miles / (69.0 * cos(radians(lat))))`
 2. Project the four corners from EPSG:4326 → EPSG:5070 using proj4
 3. Return both the EPSG:5070 bbox (for CDL API) and the EPSG:4326 bbox (for Leaflet)
@@ -630,6 +626,7 @@ git commit -m "feat: add coordinate projection and bounding box math"
 ## Task 5: CDL API Client
 
 **Files:**
+
 - Create: `src/lib/server/cdl.ts`
 - Create: `src/lib/server/cdl.spec.ts`
 
@@ -642,7 +639,13 @@ CDL API base URL: `https://nassgeodata.gmu.edu/axis2/services/CDLService`
 ```ts
 // src/lib/server/cdl.spec.ts
 import { describe, it, expect, vi } from 'vitest';
-import { parseReturnUrl, buildCdlFileUrl, buildExtractUrl, buildImageUrl, fetchCdlData } from './cdl';
+import {
+	parseReturnUrl,
+	buildCdlFileUrl,
+	buildExtractUrl,
+	buildImageUrl,
+	fetchCdlData
+} from './cdl';
 
 describe('URL builders', () => {
 	it('buildCdlFileUrl constructs correct URL with bbox', () => {
@@ -687,24 +690,22 @@ describe('parseReturnUrl', () => {
 
 describe('fetchCdlData', () => {
 	it('calls the CDL API chain and returns a PNG URL', async () => {
-		const mockFetch = vi.fn()
+		const mockFetch = vi
+			.fn()
 			// Step 1: GetCDLFile → returns raster URL
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			// Step 2: ExtractCDLByValues → returns filtered raster URL
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			})
 			// Step 3: GetCDLImage → returns PNG URL
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(
@@ -721,16 +722,15 @@ describe('fetchCdlData', () => {
 	});
 
 	it('skips ExtractCDLByValues when no crops filter provided', async () => {
-		const mockFetch = vi.fn()
+		const mockFetch = vi
+			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(
@@ -855,6 +855,7 @@ git commit -m "feat: add CDL API client with three-step fetch chain"
 ## Task 6: Nominatim Geocoding Proxy
 
 **Files:**
+
 - Create: `src/lib/server/geocode.ts`
 - Create: `src/lib/server/geocode.spec.ts`
 
@@ -897,9 +898,7 @@ describe('geocode', () => {
 	it('fetches and parses Nominatim results', async () => {
 		const mockFetch = vi.fn().mockResolvedValueOnce({
 			ok: true,
-			json: async () => [
-				{ display_name: 'Eustis, NE', lat: '40.67', lon: '-100.03' }
-			]
+			json: async () => [{ display_name: 'Eustis, NE', lat: '40.67', lon: '-100.03' }]
 		});
 
 		const results = await geocode('Eustis, NE', mockFetch as unknown as typeof fetch);
@@ -1026,6 +1025,7 @@ git commit -m "feat: add Nominatim geocoding proxy with rate limiting"
 ## Task 7: API Route — POST /api/search
 
 **Files:**
+
 - Create: `src/routes/api/search/+server.ts`
 
 This endpoint receives search parameters from the frontend, calls the coordinate and CDL modules, and returns the PNG URL + lat/lon bounds.
@@ -1062,10 +1062,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 
 	try {
 		// Fetch CDL data
-		const pngUrl = await fetchCdlData(
-			{ year, albers, crops },
-			fetch
-		);
+		const pngUrl = await fetchCdlData({ year, albers, crops }, fetch);
 
 		return json({
 			pngUrl,
@@ -1105,6 +1102,7 @@ git commit -m "feat: add POST /api/search endpoint for CDL data"
 ## Task 8: API Route — GET /api/geocode
 
 **Files:**
+
 - Create: `src/routes/api/geocode/+server.ts`
 
 Proxies geocoding requests to the server-side Nominatim module.
@@ -1148,6 +1146,7 @@ git commit -m "feat: add GET /api/geocode endpoint for Nominatim proxy"
 ## Task 9: Page Layout — Sidebar + Map Split
 
 **Files:**
+
 - Modify: `src/routes/+page.svelte`
 - Create: `src/lib/components/Sidebar.svelte`
 - Create: `src/lib/components/MapView.svelte`
@@ -1163,7 +1162,9 @@ Replace the default SvelteKit page with the two-zone layout: collapsible sidebar
 </script>
 
 {#if !collapsed}
-	<aside class="flex h-full w-80 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4">
+	<aside
+		class="flex h-full w-80 flex-shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4"
+	>
 		<div class="flex items-center justify-between">
 			<h1 class="text-xl font-bold text-gray-800">Field Finder</h1>
 			<button
@@ -1280,6 +1281,7 @@ npm run dev
 ```
 
 Open the browser. Expected:
+
 - Left sidebar with "Field Finder" title and "◀ Hide" button
 - Map fills remaining space with OpenStreetMap tiles
 - Sidebar collapse/expand works
@@ -1297,6 +1299,7 @@ git commit -m "feat: add page layout with collapsible sidebar and Leaflet map"
 ## Task 10: SearchBar Component
 
 **Files:**
+
 - Create: `src/lib/components/SearchBar.svelte`
 - Modify: `src/routes/+page.svelte`
 
@@ -1403,7 +1406,9 @@ Text input that accepts addresses (geocoded via `/api/geocode`) or raw lat/lon c
 		<p class="mt-1 text-xs text-red-500">{error}</p>
 	{/if}
 	{#if showDropdown}
-		<ul class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+		<ul
+			class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+		>
 			{#each results as result}
 				<li>
 					<button
@@ -1425,16 +1430,19 @@ Text input that accepts addresses (geocoded via `/api/geocode`) or raw lat/lon c
 Update `src/routes/+page.svelte` — add the SearchBar import and replace the placeholder text inside the Sidebar `children` block:
 
 Add import:
+
 ```ts
 import SearchBar from '$lib/components/SearchBar.svelte';
 ```
 
 Replace `<p class="text-sm text-gray-500">Controls will go here.</p>` with:
+
 ```svelte
 <SearchBar onLocationSelect={handleLocationSelect} />
 ```
 
 Add the handler function:
+
 ```ts
 function handleLocationSelect(lat: number, lon: number, name?: string) {
 	mapCenter = [lat, lon];
@@ -1446,6 +1454,7 @@ function handleLocationSelect(lat: number, lon: number, name?: string) {
 - [ ] **Step 3: Verify in browser**
 
 Test:
+
 1. Type "Eustis, NE" → autocomplete dropdown appears → select a result → map pans
 2. Type "40.554, -100.076" → press Enter → map pans to those coordinates
 3. Type "asdfghjkl" → "No results found" error appears
@@ -1462,6 +1471,7 @@ git commit -m "feat: add SearchBar with geocoding autocomplete and lat/lon parsi
 ## Task 11: RadiusSlider, YearSelector, CropFilter, SearchButton Components
 
 **Files:**
+
 - Create: `src/lib/components/RadiusSlider.svelte`
 - Create: `src/lib/components/YearSelector.svelte`
 - Create: `src/lib/components/CropFilter.svelte`
@@ -1480,16 +1490,10 @@ These four small components live in the sidebar below the SearchBar.
 
 <div>
 	<label for="radius-slider" class="mb-1 block text-sm font-semibold text-gray-700">
-		Radius: {radius} {radius === 1 ? 'mile' : 'miles'}
+		Radius: {radius}
+		{radius === 1 ? 'mile' : 'miles'}
 	</label>
-	<input
-		id="radius-slider"
-		type="range"
-		min="1"
-		max="50"
-		bind:value={radius}
-		class="w-full"
-	/>
+	<input id="radius-slider" type="range" min="1" max="50" bind:value={radius} class="w-full" />
 	{#if radius > 15}
 		<p class="mt-1 text-xs text-amber-600">Larger areas may take longer to load</p>
 	{/if}
@@ -1552,10 +1556,7 @@ These four small components live in the sidebar below the SearchBar.
 		{#each crops as crop}
 			<label class="flex items-center gap-2 text-sm text-gray-700">
 				<input type="checkbox" bind:checked={selected[crop.key]} class="rounded" />
-				<span
-					class="inline-block h-3 w-3 rounded-sm"
-					style="background-color: {crop.color}"
-				></span>
+				<span class="inline-block h-3 w-3 rounded-sm" style="background-color: {crop.color}"></span>
 				{crop.name}
 			</label>
 		{/each}
@@ -1610,10 +1611,14 @@ Replace `src/routes/+page.svelte` with the full wiring:
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { CROPS, type CropKey } from '$lib/crops';
 	import {
-		getSidebarCollapsed, saveSidebarCollapsed,
-		getLastLocation, saveLastLocation,
-		getLastRadius, saveLastRadius,
-		getCropFilters, saveCropFilters
+		getSidebarCollapsed,
+		saveSidebarCollapsed,
+		getLastLocation,
+		saveLastLocation,
+		getLastRadius,
+		saveLastRadius,
+		getCropFilters,
+		saveCropFilters
 	} from '$lib/localStorage';
 
 	let sidebarCollapsed = $state(false);
@@ -1647,9 +1652,15 @@ Replace `src/routes/+page.svelte` with the full wiring:
 	});
 
 	// Persist state changes to localStorage
-	$effect(() => { saveSidebarCollapsed(sidebarCollapsed, localStorage); });
-	$effect(() => { saveLastRadius(radius, localStorage); });
-	$effect(() => { saveCropFilters(cropFilters, localStorage); });
+	$effect(() => {
+		saveSidebarCollapsed(sidebarCollapsed, localStorage);
+	});
+	$effect(() => {
+		saveLastRadius(radius, localStorage);
+	});
+	$effect(() => {
+		saveCropFilters(cropFilters, localStorage);
+	});
 
 	function handleLocationSelect(lat: number, lon: number, _name?: string) {
 		mapCenter = [lat, lon];
@@ -1732,6 +1743,7 @@ Replace `src/routes/+page.svelte` with the full wiring:
 - [ ] **Step 6: Verify in browser**
 
 Test:
+
 1. All sidebar controls render and are interactive
 2. Radius slider shows warning text above 15 miles
 3. Year dropdown lists 1997-2024 with 2024 as default
@@ -1753,10 +1765,12 @@ git commit -m "feat: add radius slider, year selector, crop filter, and search b
 ## Task 12: Map Features — Location Marker, Bounding Box, Crop Overlay
 
 **Files:**
+
 - Modify: `src/lib/components/MapView.svelte`
 - Modify: `src/routes/+page.svelte`
 
 Enhance the map with:
+
 - Location marker that moves when user clicks map or searches
 - Real-time bounding box rectangle that updates with radius/location changes
 - CDL crop PNG overlay that renders after search
@@ -1788,6 +1802,7 @@ let {
 ```
 
 Add Leaflet layer management:
+
 - **Location marker**: `L.marker(center)` — update position when `center` changes via `$effect`
 - **Bounding box rectangle**: `L.rectangle(bounds, { color: '#3388ff', weight: 2, fill: false })` — recalculate bounds from `center` + `radius` via `$effect`, importing `computeBboxLatLon` from `$lib/geo` (this is the shared client-safe module, not the server-only `coordinates.ts`)
 - **Crop overlay**: `L.imageOverlay(overlayUrl, overlayBounds, { crossOrigin: 'anonymous' })` — add/replace when `overlayUrl` changes via `$effect`
@@ -1797,6 +1812,7 @@ Add Leaflet layer management:
 - [ ] **Step 2: Wire map props from page state**
 
 Update `src/routes/+page.svelte`:
+
 - Pass `radius`, `overlayUrl`, `overlayBounds`, `loading`, `errorMessage` to `MapView`
 - Implement `handleSearch()` function that:
   1. Sets `loading = true`
@@ -1815,6 +1831,7 @@ In `onMount`, load saved location, radius, and crop filters from localStorage. I
 - [ ] **Step 4: Verify in browser — full search flow**
 
 Test the complete flow:
+
 1. Type "Eustis, NE" in search bar → select result → marker appears, map pans, bbox rectangle visible
 2. Adjust radius slider → bbox rectangle updates in real time
 3. Click Search → loading indicator shows → crop overlay appears on map
@@ -1834,6 +1851,7 @@ git commit -m "feat: add location marker, bounding box preview, and crop overlay
 ## Task 13: Legend Component
 
 **Files:**
+
 - Create: `src/lib/components/Legend.svelte`
 - Modify: `src/lib/components/MapView.svelte`
 
@@ -1854,7 +1872,8 @@ Floating color legend on the map (bottom-left corner). Reads from the shared `CR
 	<div class="grid grid-cols-2 gap-x-4 gap-y-0.5">
 		{#each crops as crop}
 			<div class="flex items-center gap-1.5 text-xs text-gray-600">
-				<span class="inline-block h-2.5 w-2.5 rounded-sm" style="background-color: {crop.color}"></span>
+				<span class="inline-block h-2.5 w-2.5 rounded-sm" style="background-color: {crop.color}"
+				></span>
 				{crop.name}
 			</div>
 		{/each}
@@ -1882,6 +1901,7 @@ git commit -m "feat: add color legend overlay on map"
 ## Task 14: Waypoints — Drop, Name, Delete, Persist
 
 **Files:**
+
 - Create: `src/lib/components/WaypointPopup.svelte`
 - Modify: `src/lib/components/MapView.svelte`
 - Modify: `src/routes/+page.svelte`
@@ -1910,6 +1930,7 @@ Pass `waypoints` array as a bindable prop to MapView. Load from localStorage on 
 - [ ] **Step 3: Verify in browser**
 
 Test:
+
 1. Right-click map → waypoint marker appears (different color from location marker)
 2. Click waypoint → popup with name input and Save/Delete buttons
 3. Type a name, click Save → popup closes, name persists
@@ -1930,6 +1951,7 @@ git commit -m "feat: add persistent waypoints with right-click drop, naming, and
 ## Task 15: Error Handling & Polish
 
 **Files:**
+
 - Modify: `src/lib/components/MapView.svelte`
 - Modify: `src/routes/+page.svelte`
 
@@ -1938,6 +1960,7 @@ Add error handling for all failure modes listed in the spec, and polish the load
 - [ ] **Step 1: Handle CDL API errors in search flow**
 
 In `+page.svelte`'s `handleSearch()`:
+
 - Catch fetch failures and CDL API errors (502 from our endpoint)
 - Set `errorMessage` state that MapView displays as an overlay on the map
 - Clear error when a new search starts
@@ -1945,6 +1968,7 @@ In `+page.svelte`'s `handleSearch()`:
 - [ ] **Step 2: Handle PNG load failures in MapView**
 
 When creating the `L.imageOverlay`, listen for the `error` event:
+
 ```ts
 overlay.on('error', () => {
 	errorMessage = 'Failed to load crop data image';
@@ -1958,6 +1982,7 @@ If the CDL API returns successfully but the PNG URL is empty or invalid, show: "
 - [ ] **Step 4: Verify all error scenarios**
 
 Test:
+
 1. Search with a valid location → success (baseline)
 2. Disconnect network → Search → error message on map
 3. Search in the ocean (no crop data) → appropriate message
@@ -1975,6 +2000,7 @@ git commit -m "feat: add error handling for CDL API failures and PNG load errors
 ## Task 16: Clean Up & Final Verification
 
 **Files:**
+
 - Delete: `src/lib/vitest-examples/` (scaffold examples no longer needed)
 - Modify: `src/lib/index.ts` (remove example export if present)
 
@@ -2010,6 +2036,7 @@ npm run dev
 ```
 
 Walk through the full user flow:
+
 1. App loads, map centered on continental US
 2. Search for "Eustis, NE" → map pans, marker appears, bbox rectangle shows
 3. Adjust radius to 10 miles → bbox updates in real time
