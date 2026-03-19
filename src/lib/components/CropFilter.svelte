@@ -18,6 +18,8 @@
 			}
 		}
 	});
+
+	const noneSelected = $derived(crops.every((c) => !selected[c.key]));
 </script>
 
 <fieldset>
@@ -31,4 +33,7 @@
 			</label>
 		{/each}
 	</div>
+	{#if noneSelected}
+		<p class="mt-2 text-xs text-amber-600">No crops selected — all crop data will be shown.</p>
+	{/if}
 </fieldset>

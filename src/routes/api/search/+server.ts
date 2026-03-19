@@ -47,8 +47,17 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			error(502, 'CDL API returned invalid or empty image URL');
 		}
 
+		// Proxy the PNG through the server to avoid CORS issues (NASS servers don't send CORS headers)
+		const pngResp = await fetch(pngUrl);
+		if (!pngResp.ok) {
+			error(502, 'Failed to fetch crop PNG from CDL server');
+		}
+		const pngBuffer = await pngResp.arrayBuffer();
+		const base64 = Buffer.from(pngBuffer).toString('base64');
+		const dataUrl = `data:image/png;base64,${base64}`;
+
 		return json({
-			pngUrl,
+			pngUrl: dataUrl,
 			bounds: [
 				[latLon.south, latLon.west],
 				[latLon.north, latLon.east]

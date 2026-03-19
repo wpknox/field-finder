@@ -16,11 +16,12 @@ export function buildImageUrl(rasterUrl: string): string {
 }
 
 /**
- * Parse the <returnURL> element from CDL API XML response.
- * The CDL API wraps results in various XML envelopes but always uses <returnURL>.
+ * Parse the <returnURL> or <returnURLArray> element from CDL API XML response.
+ * GetCDLFile and ExtractCDLByValues return <returnURL>.
+ * GetCDLImage returns <returnURLArray> (contains the first/only PNG URL).
  */
 export function parseReturnUrl(xml: string): string {
-	const match = xml.match(/<returnURL>(.*?)<\/returnURL>/);
+	const match = xml.match(/<returnURL(?:Array)?>(.*?)<\/returnURL(?:Array)?>/);
 	if (!match) {
 		throw new Error(`CDL API response missing <returnURL>: ${xml.slice(0, 200)}`);
 	}

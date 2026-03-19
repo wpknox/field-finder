@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { computeBboxLatLon } from '$lib/geo';
 	import Legend from './Legend.svelte';
+	import ErrorToast from './ErrorToast.svelte';
 	import type { Waypoint } from '$lib/localStorage';
 
 	let {
@@ -11,7 +12,7 @@
 		overlayUrl = '',
 		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
 		loading = false,
-		errorMessage = '',
+		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
 		onMapClick
 	}: {
@@ -122,7 +123,7 @@
 			overlay.remove();
 		}
 		import('leaflet').then((L) => {
-			overlay = L.imageOverlay(overlayUrl, overlayBounds!, { crossOrigin: 'anonymous' }).addTo(
+			overlay = L.imageOverlay(overlayUrl, overlayBounds!).addTo(
 				map!
 			);
 			overlay.on('error', () => {
@@ -204,18 +205,12 @@
 	<Legend />
 	{#if loading}
 		<div
-			class="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-white/40"
+			class="pointer-events-none absolute inset-0 z-1000 flex items-center justify-center bg-white/40"
 		>
 			<span class="rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow"
 				>Loading crop data…</span
 			>
 		</div>
 	{/if}
-	{#if errorMessage}
-		<div class="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center">
-			<span class="rounded-lg bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 shadow"
-				>{errorMessage}</span
-			>
-		</div>
-	{/if}
+	<ErrorToast message={errorMessage} ondismiss={() => (errorMessage = '')} />
 </div>

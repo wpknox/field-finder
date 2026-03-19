@@ -1,11 +1,14 @@
 <script lang="ts">
 	let {
+		query = $bindable(''),
+		center,
 		onLocationSelect
 	}: {
+		query?: string;
+		center?: [number, number];
 		onLocationSelect: (lat: number, lon: number, name?: string) => void;
 	} = $props();
 
-	let query = $state('');
 	let results = $state<Array<{ display_name: string; lat: number; lon: number }>>([]);
 	let showDropdown = $state(false);
 	let error = $state('');
@@ -77,6 +80,12 @@
 		showDropdown = false;
 		onLocationSelect(result.lat, result.lon, result.display_name);
 	}
+
+	function formatCoords(lat: number, lon: number): string {
+		const ns = lat >= 0 ? 'N' : 'S';
+		const ew = lon >= 0 ? 'E' : 'W';
+		return `${Math.abs(lat).toFixed(4)}°${ns}  ${Math.abs(lon).toFixed(4)}°${ew}`;
+	}
 </script>
 
 <div class="relative">
@@ -91,6 +100,9 @@
 		placeholder="Search address or lat, lon..."
 		class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
 	/>
+	{#if center}
+		<p class="mt-1 text-xs text-gray-400">{formatCoords(center[0], center[1])}</p>
+	{/if}
 	{#if error}
 		<p class="mt-1 text-xs text-red-500">{error}</p>
 	{/if}
