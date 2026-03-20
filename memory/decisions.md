@@ -161,6 +161,36 @@ related:
 
 ---
 
+### [2026-03-19] Live bounding box update during center marker drag
+
+**Decision:** The `drag` event on the center marker directly calls `bboxRect.setBounds(...)` without touching `center` state. Only `dragend` updates `center` and calls `onMapClick`.
+
+**Reason:** Before this change, the bbox only updated after drag ended — `dragend` set `center`, the bbox `$effect` reacted, and `bboxRect.setBounds` was called. The `$effect` also calls `marker.setLatLng` when `center` changes; doing that during an active Leaflet drag risks conflicting with Leaflet's own drag management. Keeping `drag` as a direct Leaflet call (bypassing Svelte state) avoids the conflict entirely and gives live feedback.
+
+**Alternatives considered:** Updating `center` on every `drag` event (triggers `marker.setLatLng` mid-drag — potentially conflicting); using a separate `$state` for the live preview position (unnecessary complexity).
+
+---
+
+### [2026-03-19] SSE streaming for CDL search progress
+
+**Decision:** `/api/search` returns a `ReadableStream` with `Content-Type: text/event-stream`. The server pushes `{ type: 'progress', message }` events after each CDL step, then a `{ type: 'done', pngUrl, bounds }` event when complete. The client reads the stream and updates a `loadingMessage` string shown on the map overlay.
+
+**Reason:** The CDL pipeline has 4 sequential steps (GetCDLFile → ExtractCDLByValues → GetCDLImage → PNG download), each taking several seconds. A single JSON response gives users no feedback during the wait. SSE keeps all CDL calls server-side (no CORS), uses one endpoint, and streams real-time step names to the UI without polling.
+
+**Alternatives considered:** Three separate API endpoints per step (exposes intermediate CDL URLs to client, more endpoints to maintain); polling a status endpoint (requires server-side state); single JSON response with no progress (original approach — poor UX for slow API).
+
+---
+
+### [2026-03-19] `panVersion` counter to trigger map pan on address search
+
+**Decision:** A `panVersion: number` prop on MapView is incremented in `handleLocationSelect` (address search / lat-lon input) but NOT in `handleMapClick` or marker `dragend`. A dedicated `$effect` in MapView watches `panVersion` and calls `map.panTo(center)` when it changes.
+
+**Reason:** When a user searches a new location, the marker and bounding box jump to it but the map viewport stays put — jarring UX. Panning on every `center` change would also fire during drag (where the map is already correct) and on map clicks (where the user just clicked the visible area). The counter isolates the pan intent to address search only, with no ambiguity.
+
+**Alternatives considered:** `isDragging` flag (timing issue — set to false before `$effect` fires after dragend); separate `panTo` prop (same idea, but a counter handles repeated searches to the same coordinates correctly where a value comparison would not).
+
+---
+
 ### [2026-03-18] Stable session ID counter for waypoint markers
 
 **Decision:** Waypoints use an incrementing integer counter (`waypointIdCounter`) as a stable session ID. Two parallel Maps — `waypointData: Map<number, Waypoint>` and `waypointMarkers: Map<number, Marker>` — are keyed by this ID.

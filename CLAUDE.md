@@ -138,22 +138,23 @@ field-finder/
 
 Skills live in `.claude/skills/<skill-name>/SKILL.md`. When a skill is relevant or requested, **read its SKILL.md in full before taking any action**.
 
-| Skill                            | Description                                                                                         | Path                                                     |
-| -------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `brainstorming`                  | Turn ideas into approved designs before writing any code                                            | `.claude/skills/brainstorming/SKILL.md`                  |
-| `dispatching-parallel-agents`    | Delegate independent tasks to multiple agents simultaneously                                        | `.claude/skills/dispatching-parallel-agents/SKILL.md`    |
-| `executing-plans`                | Implement a written plan with checkpoints and verification                                          | `.claude/skills/executing-plans/SKILL.md`                |
-| `finishing-a-development-branch` | Wrap up a branch: verify tests, then merge / PR / keep / discard                                    | `.claude/skills/finishing-a-development-branch/SKILL.md` |
-| `receiving-code-review`          | Evaluate and act on code review feedback with technical rigor                                       | `.claude/skills/receiving-code-review/SKILL.md`          |
-| `requesting-code-review`         | Request a structured code review via subagent                                                       | `.claude/skills/requesting-code-review/SKILL.md`         |
-| `subagent-driven-development`    | Implement a plan using per-task subagents with spec + quality review                                | `.claude/skills/subagent-driven-development/SKILL.md`    |
-| `systematic-debugging`           | Debug by root cause investigation before attempting any fix                                         | `.claude/skills/systematic-debugging/SKILL.md`           |
-| `test-driven-development`        | Write failing test first, then minimal code to pass (red-green-refactor)                            | `.claude/skills/test-driven-development/SKILL.md`        |
-| `using-git-worktrees`            | Create isolated git workspaces for parallel branch development                                      | `.claude/skills/using-git-worktrees/SKILL.md`            |
-| `using-superpowers`              | Protocol for when and how to invoke skills                                                          | `.claude/skills/using-superpowers/SKILL.md`              |
-| `verification-before-completion` | Run fresh verification commands before claiming any work is done                                    | `.claude/skills/verification-before-completion/SKILL.md` |
-| `writing-plans`                  | Write a detailed, TDD-structured implementation plan                                                | `.claude/skills/writing-plans/SKILL.md`                  |
-| `writing-skills`                 | Create new reusable skill documentation using TDD principles                                        | `.claude/skills/writing-skills/SKILL.md`                 |
-| `frontend-design`                | Design and implement polished, accessible frontend UI                                               | `.claude/skills/frontend-design/SKILL.md`                |
-| `skill-creator`                  | Build well-structured, reliable, evaluated custom skills — **use this when creating any new skill** | `.claude/skills/skill-creator/SKILL.md`                  |
-| `theme-factory`                  | Generate consistent visual themes (colors, typography, spacing)                                     | `.claude/skills/theme-factory/SKILL.md`                  |
+| Skill | Description | Path |
+| --- | --- | --- |
+| `brainstorming` | Turn ideas into approved designs before writing any code | `.claude/skills/brainstorming/SKILL.md` |
+| `dispatching-parallel-agents` | Delegate independent tasks to multiple agents simultaneously | `.claude/skills/dispatching-parallel-agents/SKILL.md` |
+| `executing-plans` | Implement a written plan with checkpoints and verification | `.claude/skills/executing-plans/SKILL.md` |
+| `finishing-a-development-branch` | Wrap up a branch: verify tests, then merge / PR / keep / discard | `.claude/skills/finishing-a-development-branch/SKILL.md` |
+| `receiving-code-review` | Evaluate and act on code review feedback with technical rigor | `.claude/skills/receiving-code-review/SKILL.md` |
+| `requesting-code-review` | Request a structured code review via subagent | `.claude/skills/requesting-code-review/SKILL.md` |
+| `subagent-driven-development` | Implement a plan using per-task subagents with spec + quality review | `.claude/skills/subagent-driven-development/SKILL.md` |
+| `systematic-debugging` | Debug by root cause investigation before attempting any fix | `.claude/skills/systematic-debugging/SKILL.md` |
+| `test-driven-development` | Write failing test first, then minimal code to pass (red-green-refactor) | `.claude/skills/test-driven-development/SKILL.md` |
+| `using-git-worktrees` | Create isolated git workspaces for parallel branch development | `.claude/skills/using-git-worktrees/SKILL.md` |
+| `using-superpowers` | Protocol for when and how to invoke skills | `.claude/skills/using-superpowers/SKILL.md` |
+| `verification-before-completion` | Run fresh verification commands before claiming any work is done | `.claude/skills/verification-before-completion/SKILL.md` |
+| `writing-plans` | Write a detailed, TDD-structured implementation plan | `.claude/skills/writing-plans/SKILL.md` |
+| `writing-skills` | Create new reusable skill documentation using TDD principles | `.claude/skills/writing-skills/SKILL.md` |
+| `frontend-design` | Design and implement polished, accessible frontend UI | `.claude/skills/frontend-design/SKILL.md` |
+| `skill-creator` | Build well-structured, reliable, evaluated custom skills — **use this when creating any new skill** | `.claude/skills/skill-creator/SKILL.md` |
+| `theme-factory` | Generate consistent visual themes (colors, typography, spacing) | `.claude/skills/theme-factory/SKILL.md` |
+| `msync` | Sync living docs at end of session (`/msync`) — updates CONTEXT.md, decisions.md, features.md, and flags CLAUDE.md changes for approval | `.claude/skills/msync/SKILL.md` |

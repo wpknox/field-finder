@@ -10,12 +10,13 @@ related:
 
 # Feature Log
 
-## Implemented (v1)
+## Implemented (v1 + PR review polish)
 
-All features from the initial build plan are complete and in PR #1.
+All features from the initial build plan are complete, plus post-review improvements.
 
-- [x] Collapsible left sidebar with all controls
-- [x] Address search bar with geocoding (Nominatim) + lat/lon coordinate input
+**Core v1:**
+- [x] Collapsible left sidebar with animated slide (width transition + overflow-hidden)
+- [x] Address search bar with geocoding (Nominatim, US-only) + lat/lon coordinate input
 - [x] Lat/lon coordinate display below search bar (updates on map click or address select)
 - [x] Search bar clears when user clicks on the map
 - [x] Interactive Leaflet map with click-to-set-location
@@ -26,13 +27,24 @@ All features from the initial build plan are complete and in PR #1.
 - [x] Explicit Search button (no auto-search)
 - [x] Real-time bounding box preview rectangle on map
 - [x] CDL PNG crop overlay (server-proxied as base64 to avoid CORS)
-- [x] Collapsible color legend (floating on map)
+- [x] Collapsible color legend with smooth animation (CSS grid-rows trick)
 - [x] Location marker (set by search, coordinates, or map click)
 - [x] Right-click waypoints (optionally named, persist across sessions)
 - [x] Server-side CDL API proxy (EPSG:4326→5070 projection, XML parsing)
 - [x] Server-side Nominatim proxy with rate limiting
 - [x] ErrorToast component (dismissable ✕ button, auto-dismisses after 5s)
 - [x] localStorage persistence (location, radius, crop filters, waypoints, sidebar state)
+
+**PR review polish:**
+- [x] SSE-streamed step progress messages during CDL fetch ("Fetching...", "Extracting...", "Preparing...")
+- [x] Draggable center marker — bounding box live-updates during drag
+- [x] Map pans to follow marker when location set via search (not on drag/click)
+- [x] Waypoint popup opens immediately on right-click (no extra click required)
+- [x] Select All / Clear All controls in Crop Types section
+- [x] Legend and map hint ("Right-click to add waypoint · Drag to reposition") co-located at bottom-left
+- [x] Sidebar header styled with green-800 background; Hide/Expand buttons have visible outline
+- [x] Nominatim results restricted to US (`countrycodes=us`)
+- [x] `display_name` renamed to `displayName` throughout (`GeocodingResult` interface + downstream)
 
 ---
 
