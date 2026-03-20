@@ -157,3 +157,4 @@ Skills live in `.claude/skills/<skill-name>/SKILL.md`. When a skill is relevant 
 | `frontend-design` | Design and implement polished, accessible frontend UI | `.claude/skills/frontend-design/SKILL.md` |
 | `skill-creator` | Build well-structured, reliable, evaluated custom skills — **use this when creating any new skill** | `.claude/skills/skill-creator/SKILL.md` |
 | `theme-factory` | Generate consistent visual themes (colors, typography, spacing) | `.claude/skills/theme-factory/SKILL.md` |
+| `msync` | Sync living docs at end of session (`/msync`) — updates CONTEXT.md, decisions.md, features.md, and flags CLAUDE.md changes for approval | `.claude/skills/msync/SKILL.md` |
