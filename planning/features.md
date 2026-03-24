@@ -52,6 +52,7 @@ All features from the initial build plan are complete, plus post-review improvem
 
 High-value features deferred from initial build:
 
+- [ ] **Increased PNG Quality or Alternative Overlay File Type** — The quality of the PNG overlayed onto map in v1 quickly degrades if the user zooms in. This needs corrected by upping the quality of the PNG, or by rendering an alternative image format for the CDL overlay onto the map
 - [ ] **CDL overlay opacity control** — slider to adjust crop overlay transparency
 - [ ] **Area Summary / crop statistics** — % breakdown per crop type (requires server-side raster processing)
 - [ ] **Year comparison** — toggle between two years' overlays
@@ -63,6 +64,7 @@ High-value features deferred from initial build:
 
 - [ ] **Water source data** — stock tanks, ponds, watering holes (National Hydrography Dataset or similar). High value for dove hunting.
 - [ ] **Habitat highlighting** — auto-identify grain-adjacent-to-cover patterns. Needs accuracy validation.
+- [ ] **Image Overlay Placement Accuracy** — The CDL image sometimes seems to not overlay perfectly, this can be verified after the overlay opacity is modifiable.
 - [ ] **Saved locations / user accounts** — bookmarking + light auth (requires database)
 - [ ] **Custom bounding box** — let user draw a box on the map instead of radius-from-point
 - [ ] **Share link** — URL encodes location/radius/year so a view can be shared
@@ -88,7 +90,10 @@ High-value features deferred from initial build:
 
 - Target user base: <20 people (small scale, no scaling concerns)
 - DB if used: SQLite (file-based, zero infra)
+  - Explore [Pocketbase](https://pocketbase.io/) for this
 - No paid API keys required for core functionality (Nominatim + CDL are free)
+  - If application eventually becomes viable, secure, and there is some potential way to generate revenue, **low cost, reliable** APIs can be explored (unlikely and very low priority)
+    - All APIs would need to be reconsidered if we get to this point
 
 ---
 
