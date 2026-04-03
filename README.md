@@ -1,42 +1,51 @@
-# sv
+# Field Finder
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A web-based crop scouting tool for hunters and farmers. Search any location to see USDA NASS Cropland Data Layer (CDL) crop data overlaid on an interactive map — useful for identifying grain fields, food plots, and habitat when scouting for upland birds and other wildlife.
 
-## Creating a project
+Replaces a Python CLI (`ff-py/ff.py`) with a real-time, browser-based experience.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## What It Does
+
+1. Search any address or enter coordinates to set a location
+2. Choose a year (1997–2024) and search radius (1–50 miles)
+3. Filter by crop type (corn, soybeans, wheat, sorghum, alfalfa, and more)
+4. View the CDL crop overlay directly on an interactive map
+5. Drop waypoints to mark spots of interest (persisted across sessions)
+
+## Tech Stack
+
+- **Framework**: SvelteKit (TypeScript) — frontend + backend in one project
+- **Map**: Leaflet.js — open source, no API key required
+- **Crop data**: USDA NASS CropScape CDL API (free, no key required)
+- **Geocoding**: Nominatim / OpenStreetMap (free, no key required)
+- **Styling**: Tailwind CSS
+- **Database**: SQLite via Drizzle ORM (not yet used — deferred until a feature needs it)
+
+## Getting Started
 
 ```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.12.8 create --template minimal --types ts --add prettier eslint vitest="usages:unit" tailwindcss="plugins:none" drizzle="database:sqlite+sqlite:better-sqlite3" --no-download-check --install npm .
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Open `http://localhost:5173` in your browser.
 
-To create a production version of your app:
+## Key Notes
+
+- CDL API requests are proxied server-side to avoid CORS restrictions
+- CDL API is slow (expect 3–10 seconds per search)
+- Coordinates use EPSG:4326 for input; the server reprojects to EPSG:5070 (Albers) for the CDL API
+- All user settings (location, radius, year, crop filters, waypoints) are persisted to `localStorage`
+
+## Data Source
+
+USDA NASS CropScape: https://nassgeodata.gmu.edu/CropScape/
+
+## Development
 
 ```sh
-npm run build
+npm run check    # type-check
+npm run lint     # ESLint + Prettier check
+npm run test     # Vitest unit tests
+npm run build    # production build
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

@@ -24,12 +24,12 @@ After reading, briefly summarize what you understand about the current state so 
 
 All living documents in `memory/` and `planning/` carry YAML frontmatter. Use these fields to locate and understand files without reading their full content:
 
-| Field | Purpose |
-| --- | --- |
-| `id` | Stable slug for cross-referencing (e.g. `context`, `decisions`, `features`) |
-| `type` | Category: `memory`, `planning`, or `skill` |
-| `description` | One-line summary of what the file contains |
-| `related` | List of other files relevant to this one |
+| Field         | Purpose                                                                     |
+| ------------- | --------------------------------------------------------------------------- |
+| `id`          | Stable slug for cross-referencing (e.g. `context`, `decisions`, `features`) |
+| `type`        | Category: `memory`, `planning`, or `skill`                                  |
+| `description` | One-line summary of what the file contains                                  |
+| `related`     | List of other files relevant to this one                                    |
 
 When told to "check context" or "check decisions", use the `id` field to locate the right file instantly.
 
@@ -58,29 +58,29 @@ The CLI flow is clunky — text prompts, no live preview, manual file management
 
 ### Key API Endpoints
 
-| Endpoint | Purpose |
-| --- | --- |
+| Endpoint                                            | Purpose                              |
+| --------------------------------------------------- | ------------------------------------ |
 | `GetCDLFile?year=YYYY&bbox=x_min,y_min,x_max,y_max` | Get raster file URL for bounding box |
-| `ExtractCDLByValues?file=<url>&values=<csv_ids>` | Filter to specific crop value IDs |
-| `GetCDLImage?files=<url>&format=png` | Get PNG image URL for a raster file |
+| `ExtractCDLByValues?file=<url>&values=<csv_ids>`    | Filter to specific crop value IDs    |
+| `GetCDLImage?files=<url>&format=png`                | Get PNG image URL for a raster file  |
 
 ### Crop Color Legend
 
-| Color | Crop | CDL Value |
-| --- | --- | --- |
-| Yellow | Corn | 1 |
-| Green | Soybeans | 5 |
-| Orange | Sorghum | 4 |
-| Brown | Winter Wheat | 24 |
-| Purple | Oats | 28 |
-| Magenta | Barley | 21 |
-| Light Yellow | Sunflower | 6 |
-| Light Green | Pasture | 176 |
-| Blue | Open Water | 111 |
-| Light Blue | Woody Wetlands/Rivers | 190 |
-| Gray | Fallow/Idle Cropland | 61 |
-| Pink | Alfalfa | 36 |
-| Light Brown | Spring Wheat | 23 |
+| Color        | Crop                  | CDL Value |
+| ------------ | --------------------- | --------- |
+| Yellow       | Corn                  | 1         |
+| Green        | Soybeans              | 5         |
+| Orange       | Sorghum               | 4         |
+| Brown        | Winter Wheat          | 24        |
+| Purple       | Oats                  | 28        |
+| Magenta      | Barley                | 21        |
+| Light Yellow | Sunflower             | 6         |
+| Light Green  | Pasture               | 176       |
+| Blue         | Open Water            | 111       |
+| Light Blue   | Woody Wetlands/Rivers | 190       |
+| Gray         | Fallow/Idle Cropland  | 61        |
+| Pink         | Alfalfa               | 36        |
+| Light Brown  | Spring Wheat          | 23        |
 
 ## Coordinate Math
 

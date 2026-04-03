@@ -11,6 +11,7 @@ related:
 # Decision Log
 
 > **Rules for this file:**
+>
 > - Append only. Never edit or delete existing entries.
 > - One decision per entry, newest at the bottom.
 > - Each entry answers: What was decided? Why? What was the alternative?
@@ -187,6 +188,16 @@ related:
 **Reason:** When a user searches a new location, the marker and bounding box jump to it but the map viewport stays put — jarring UX. Panning on every `center` change would also fire during drag (where the map is already correct) and on map clicks (where the user just clicked the visible area). The counter isolates the pan intent to address search only, with no ambiguity.
 
 **Alternatives considered:** `isDragging` flag (timing issue — set to false before `$effect` fires after dragend); separate `panTo` prop (same idea, but a counter handles repeated searches to the same coordinates correctly where a value comparison would not).
+
+---
+
+### [2026-04-02] LoadingOverlay extracted to dedicated component
+
+**Decision:** The loading state UI lives in `LoadingOverlay.svelte` rather than inline in `MapView.svelte`. Oscillating dots use a `setInterval` inside a `$effect` (starts when `message` becomes truthy, clears on teardown). The dots span has a fixed width (`w-5`) to prevent the box from resizing as dot count changes.
+
+**Reason:** The inline block was growing (spinner, animated text) to the point where it warranted a named component. The fixed-width span detail is non-obvious — without it the card jitters on every dot tick.
+
+**Alternatives considered:** CSS-only dot animation (harder to sync start with message arrival); animating opacity of pre-rendered dots (more DOM nodes, trickier timing).
 
 ---
 

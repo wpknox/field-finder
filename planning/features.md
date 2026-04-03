@@ -45,6 +45,7 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] Sidebar header styled with green-800 background; Hide/Expand buttons have visible outline
 - [x] Nominatim results restricted to US (`countrycodes=us`)
 - [x] `display_name` renamed to `displayName` throughout (`GeocodingResult` interface + downstream)
+- [x] `LoadingOverlay` component — spinner + animated oscillating dots (replaces inline map overlay markup)
 
 ---
 
@@ -52,6 +53,7 @@ All features from the initial build plan are complete, plus post-review improvem
 
 High-value features deferred from initial build:
 
+- [ ] **GeoTIFF overlay via `georaster-layer-for-leaflet`** ⚡ HIGH PRIORITY — The current PNG `imageOverlay` pixelates on zoom because it's a fixed-resolution bitmap. Fix: use the raster URL already returned by `GetCDLFile` / `ExtractCDLByValues` and render it with `georaster` + `georaster-layer-for-leaflet`, which re-renders tiles per zoom level so the overlay stays sharp at any zoom. Requires: `npm install georaster georaster-layer-for-leaflet`, server route to proxy raw `.tif` binary (instead of the PNG path), proj4 EPSG:5070 definition on the client for reprojection.
 - [ ] **CDL overlay opacity control** — slider to adjust crop overlay transparency
 - [ ] **Area Summary / crop statistics** — % breakdown per crop type (requires server-side raster processing)
 - [ ] **Year comparison** — toggle between two years' overlays
@@ -63,6 +65,7 @@ High-value features deferred from initial build:
 
 - [ ] **Water source data** — stock tanks, ponds, watering holes (National Hydrography Dataset or similar). High value for dove hunting.
 - [ ] **Habitat highlighting** — auto-identify grain-adjacent-to-cover patterns. Needs accuracy validation.
+- [ ] **Image Overlay Placement Accuracy** — The CDL image sometimes seems to not overlay perfectly, this can be verified after the overlay opacity is modifiable.
 - [ ] **Saved locations / user accounts** — bookmarking + light auth (requires database)
 - [ ] **Custom bounding box** — let user draw a box on the map instead of radius-from-point
 - [ ] **Share link** — URL encodes location/radius/year so a view can be shared
@@ -76,6 +79,7 @@ High-value features deferred from initial build:
 ## Requirements
 
 ### Functional
+
 - Must proxy CDL API calls server-side (CORS restriction)
 - Must proxy CDL PNG server-side (NASS servers don't send CORS headers)
 - Coordinate projection: input EPSG:4326 → bounding box EPSG:5070 (Albers) for CDL API
@@ -84,9 +88,13 @@ High-value features deferred from initial build:
 - Radius capped at 50 miles to avoid huge/slow requests
 
 ### Non-Functional
+
 - Target user base: <20 people (small scale, no scaling concerns)
 - DB if used: SQLite (file-based, zero infra)
+  - Explore [Pocketbase](https://pocketbase.io/) for this
 - No paid API keys required for core functionality (Nominatim + CDL are free)
+  - If application eventually becomes viable, secure, and there is some potential way to generate revenue, **low cost, reliable** APIs can be explored (unlikely and very low priority)
+    - All APIs would need to be reconsidered if we get to this point
 
 ---
 
