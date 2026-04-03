@@ -45,6 +45,7 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] Sidebar header styled with green-800 background; Hide/Expand buttons have visible outline
 - [x] Nominatim results restricted to US (`countrycodes=us`)
 - [x] `display_name` renamed to `displayName` throughout (`GeocodingResult` interface + downstream)
+- [x] `LoadingOverlay` component — spinner + animated oscillating dots (replaces inline map overlay markup)
 
 ---
 
@@ -52,7 +53,7 @@ All features from the initial build plan are complete, plus post-review improvem
 
 High-value features deferred from initial build:
 
-- [ ] **Increased PNG Quality or Alternative Overlay File Type** — The quality of the PNG overlayed onto map in v1 quickly degrades if the user zooms in. This needs corrected by upping the quality of the PNG, or by rendering an alternative image format for the CDL overlay onto the map
+- [ ] **GeoTIFF overlay via `georaster-layer-for-leaflet`** ⚡ HIGH PRIORITY — The current PNG `imageOverlay` pixelates on zoom because it's a fixed-resolution bitmap. Fix: use the raster URL already returned by `GetCDLFile` / `ExtractCDLByValues` and render it with `georaster` + `georaster-layer-for-leaflet`, which re-renders tiles per zoom level so the overlay stays sharp at any zoom. Requires: `npm install georaster georaster-layer-for-leaflet`, server route to proxy raw `.tif` binary (instead of the PNG path), proj4 EPSG:5070 definition on the client for reprojection.
 - [ ] **CDL overlay opacity control** — slider to adjust crop overlay transparency
 - [ ] **Area Summary / crop statistics** — % breakdown per crop type (requires server-side raster processing)
 - [ ] **Year comparison** — toggle between two years' overlays

@@ -43,6 +43,7 @@ Core v1 features:
 - Real-time bounding box preview rectangle on map (live-updates while dragging marker)
 - CDL PNG crop overlay (proxied through server as base64 to avoid CORS)
 - SSE-streamed step-by-step progress messages during CDL fetch
+- LoadingOverlay component — spinner + oscillating dots (1→2→3→1 at 500ms), replaces inline markup
 - Collapsible color legend with smooth animation (CSS grid-rows trick)
 - Legend and map hint co-located at bottom-left of map
 - Location marker — draggable to reposition center

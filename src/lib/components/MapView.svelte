@@ -3,6 +3,7 @@
 	import { computeBboxLatLon } from '$lib/geo';
 	import Legend from './Legend.svelte';
 	import ErrorToast from './ErrorToast.svelte';
+	import LoadingOverlay from './LoadingOverlay.svelte';
 	import type { Waypoint } from '$lib/localStorage';
 
 	let {
@@ -259,14 +260,6 @@
 			Right-click to add a waypoint &nbsp;·&nbsp; Drag the marker to reposition
 		</p>
 	</div>
-	{#if loadingMessage}
-		<div
-			class="pointer-events-none absolute inset-0 z-1000 flex items-center justify-center bg-white/40"
-		>
-			<span class="rounded-lg bg-white px-4 py-2 text-sm font-semibold shadow"
-				>{loadingMessage}</span
-			>
-		</div>
-	{/if}
+	<LoadingOverlay message={loadingMessage} />
 	<ErrorToast message={errorMessage} ondismiss={() => (errorMessage = '')} />
 </div>

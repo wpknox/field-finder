@@ -191,6 +191,16 @@ related:
 
 ---
 
+### [2026-04-02] LoadingOverlay extracted to dedicated component
+
+**Decision:** The loading state UI lives in `LoadingOverlay.svelte` rather than inline in `MapView.svelte`. Oscillating dots use a `setInterval` inside a `$effect` (starts when `message` becomes truthy, clears on teardown). The dots span has a fixed width (`w-5`) to prevent the box from resizing as dot count changes.
+
+**Reason:** The inline block was growing (spinner, animated text) to the point where it warranted a named component. The fixed-width span detail is non-obvious — without it the card jitters on every dot tick.
+
+**Alternatives considered:** CSS-only dot animation (harder to sync start with message arrival); animating opacity of pre-rendered dots (more DOM nodes, trickier timing).
+
+---
+
 ### [2026-03-18] Stable session ID counter for waypoint markers
 
 **Decision:** Waypoints use an incrementing integer counter (`waypointIdCounter`) as a stable session ID. Two parallel Maps — `waypointData: Map<number, Waypoint>` and `waypointMarkers: Map<number, Marker>` — are keyed by this ID.
