@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { computeBboxLatLon } from '$lib/geo';
 	import Legend from './Legend.svelte';
 	import ErrorToast from './ErrorToast.svelte';
@@ -10,9 +10,9 @@
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
 		radius = 10,
-		overlayUrl = '',
-		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
-		loadingMessage = '',
+		tifBase64 = '',
+		overlayOpacity = 0.7,
+		loadingMessage = $bindable(''),
 		panVersion = 0,
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
@@ -21,8 +21,8 @@
 		center?: [number, number];
 		zoom?: number;
 		radius?: number;
-		overlayUrl?: string;
-		overlayBounds?: [[number, number], [number, number]];
+		tifBase64?: string;
+		overlayOpacity?: number;
 		loadingMessage?: string;
 		panVersion?: number;
 		errorMessage?: string;
@@ -36,7 +36,7 @@
 	let map: import('leaflet').Map | undefined;
 	let marker: import('leaflet').Marker | undefined;
 	let bboxRect: import('leaflet').Rectangle | undefined;
-	let overlay: import('leaflet').ImageOverlay | undefined;
+	let overlay = $state<import('leaflet').GridLayer | undefined>(undefined);
 
 	// Internal Leaflet tracking maps — intentionally plain Map, not SvelteMap.
 	// The UI reads from the `waypoints` $state array; these maps are only used
@@ -149,20 +149,68 @@
 		}
 	});
 
-	// Crop overlay — replaces previous overlay when overlayUrl/overlayBounds change
+	// GeoTIFF overlay — decode, parse, and render when tifBase64 changes.
+	// Uses $state overlay so the opacity $effect can track it.
+	// Reads overlay and overlayOpacity via untrack() to avoid making them dependencies.
 	$effect(() => {
-		if (!mapReady || !map || !overlayUrl || !overlayBounds) return;
-		if (overlay) {
-			overlay.remove();
+		if (!mapReady || !map || !tifBase64) return;
+
+		const oldOverlay = untrack(() => overlay);
+		if (oldOverlay) {
+			map!.removeLayer(oldOverlay);
+			overlay = undefined;
 		}
-		import('leaflet').then((L) => {
-			overlay = L.imageOverlay(overlayUrl, overlayBounds!).addTo(
-				map!
-			);
-			overlay.on('error', () => {
-				errorMessage = 'Failed to load crop image — the data may not be available for this area';
-			});
-		});
+
+		const currentTif = tifBase64;
+
+		(async () => {
+			try {
+				loadingMessage = 'Rendering crop overlay...';
+
+				const binaryStr = atob(currentTif);
+				const bytes = new Uint8Array(binaryStr.length);
+				for (let i = 0; i < binaryStr.length; i++) {
+					bytes[i] = binaryStr.charCodeAt(i);
+				}
+
+				const [parseGeoraster, GeoRasterLayer, proj4] = await Promise.all([
+					import('georaster').then((m) => m.default),
+					import('georaster-layer-for-leaflet').then((m) => m.default),
+					import('proj4').then((m) => m.default)
+				]);
+
+				const { EPSG_5070 } = await import('$lib/projections');
+				proj4.defs('EPSG:5070', EPSG_5070);
+
+				const georaster = await parseGeoraster(bytes.buffer);
+
+				if (tifBase64 !== currentTif) return;
+
+				const initialOpacity = untrack(() => overlayOpacity);
+				const layer = new GeoRasterLayer({
+					georaster,
+					opacity: initialOpacity,
+					resolution: 256,
+					proj4
+				});
+				layer.addTo(map!);
+				overlay = layer;
+				loadingMessage = '';
+			} catch (err) {
+				console.error('GeoTIFF rendering error:', err);
+				if (tifBase64 === currentTif) {
+					loadingMessage = '';
+					errorMessage = 'Failed to render crop overlay';
+				}
+			}
+		})();
+	});
+
+	// Opacity — reactively update when the slider changes, without re-parsing the GeoTIFF
+	$effect(() => {
+		if (overlay) {
+			overlay.setOpacity(overlayOpacity);
+		}
 	});
 
 	/** Returns the HTML string for a waypoint dot marker icon. */
