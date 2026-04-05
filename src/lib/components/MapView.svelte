@@ -185,6 +185,9 @@
 
 				const { EPSG_5070 } = await import('$lib/projections');
 				proj4.defs('EPSG:5070', EPSG_5070);
+				// georaster-layer-for-leaflet resolves projections from window.proj4 globally,
+				// not just the instance passed via options — register it there too.
+				(window as typeof window & { proj4: unknown }).proj4 = proj4;
 
 				const georaster = await parseGeoraster(bytes.buffer);
 
