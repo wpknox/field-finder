@@ -5,6 +5,7 @@
 	import ErrorToast from './ErrorToast.svelte';
 	import LoadingOverlay from './LoadingOverlay.svelte';
 	import type { Waypoint } from '$lib/localStorage';
+	import { computeCropStats, type CropStat } from '$lib/cropStats';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
@@ -16,6 +17,7 @@
 		panVersion = 0,
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
+		cropStats = $bindable<CropStat[]>([]),
 		onMapClick
 	}: {
 		center?: [number, number];
@@ -27,6 +29,7 @@
 		panVersion?: number;
 		errorMessage?: string;
 		waypoints?: Waypoint[];
+		cropStats?: CropStat[];
 		onMapClick?: (lat: number, lon: number) => void;
 	} = $props();
 
@@ -159,6 +162,7 @@
 		if (oldOverlay) {
 			map!.removeLayer(oldOverlay);
 			overlay = undefined;
+			cropStats = [];
 		}
 
 		const currentTif = tifBase64;
@@ -195,6 +199,7 @@
 				});
 				layer.addTo(map!);
 				overlay = layer;
+				cropStats = computeCropStats(georaster.values, georaster.noDataValue);
 				loadingMessage = '';
 			} catch (err) {
 				console.error('GeoTIFF rendering error:', err);

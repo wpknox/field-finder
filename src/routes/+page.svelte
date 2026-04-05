@@ -9,6 +9,8 @@
 	import CropFilter from '$lib/components/CropFilter.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import OpacitySlider from '$lib/components/OpacitySlider.svelte';
+	import AreaSummary from '$lib/components/AreaSummary.svelte';
+	import type { CropStat } from '$lib/cropStats';
 	import { CROPS, type CropKey } from '$lib/crops';
 	import {
 		getSidebarCollapsed,
@@ -36,6 +38,7 @@
 	let loading = $derived(loadingMessage !== '');
 	let tifBase64 = $state('');
 	let overlayOpacity = $state(0.7);
+	let cropStats = $state<CropStat[]>([]);
 	let errorMessage = $state('');
 	let hasLocation = $state(false);
 	let searchQuery = $state('');
@@ -171,6 +174,7 @@
 		<YearSelector bind:year />
 		<CropFilter bind:selected={cropFilters} />
 		<OpacitySlider bind:opacity={overlayOpacity} />
+		<AreaSummary stats={cropStats} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
 	</Sidebar>
 
@@ -185,6 +189,7 @@
 			{panVersion}
 			bind:errorMessage
 			bind:waypoints
+			bind:cropStats
 			onMapClick={handleMapClick}
 		/>
 	</main>
