@@ -8,6 +8,7 @@
 	import YearSelector from '$lib/components/YearSelector.svelte';
 	import CropFilter from '$lib/components/CropFilter.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
+	import OpacitySlider from '$lib/components/OpacitySlider.svelte';
 	import { CROPS, type CropKey } from '$lib/crops';
 	import {
 		getSidebarCollapsed,
@@ -20,6 +21,8 @@
 		saveCropFilters,
 		getWaypoints,
 		saveWaypoints,
+		getOverlayOpacity,
+		saveOverlayOpacity,
 		type Waypoint
 	} from '$lib/localStorage';
 
@@ -31,8 +34,8 @@
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
 	let loadingMessage = $state('');
 	let loading = $derived(loadingMessage !== '');
-	let overlayUrl = $state('');
-	let overlayBounds = $state<[[number, number], [number, number]] | undefined>(undefined);
+	let tifBase64 = $state('');
+	let overlayOpacity = $state(0.7);
 	let errorMessage = $state('');
 	let hasLocation = $state(false);
 	let searchQuery = $state('');
@@ -58,6 +61,9 @@
 
 		const savedWaypoints = getWaypoints(localStorage);
 		if (savedWaypoints.length > 0) waypoints = savedWaypoints;
+
+		const savedOpacity = getOverlayOpacity(localStorage);
+		if (savedOpacity !== null) overlayOpacity = savedOpacity;
 	});
 
 	// Persist state changes to localStorage
@@ -72,6 +78,9 @@
 	});
 	$effect(() => {
 		saveWaypoints(waypoints, localStorage);
+	});
+	$effect(() => {
+		saveOverlayOpacity(overlayOpacity, localStorage);
 	});
 
 	function handleLocationSelect(lat: number, lon: number) {
@@ -94,13 +103,13 @@
 
 		loadingMessage = 'Starting...';
 		errorMessage = '';
-
-		// Collect selected crop IDs
-		const selectedCropIds = Object.entries(cropFilters)
-			.filter(([, checked]) => checked)
-			.map(([key]) => CROPS[key as CropKey].id);
+		let handedOffToMap = false;
 
 		try {
+			const selectedCropIds = Object.entries(cropFilters)
+				.filter(([, checked]) => checked)
+				.map(([key]) => CROPS[key as CropKey].id);
+
 			const resp = await fetch('/api/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -125,7 +134,6 @@
 				const { done, value } = await reader.read();
 				if (done) break;
 
-				// SSE lines: "data: {...}\n\n"
 				for (const line of decoder.decode(value).split('\n')) {
 					if (!line.startsWith('data: ')) continue;
 					const event = JSON.parse(line.slice(6));
@@ -133,8 +141,8 @@
 					if (event.type === 'progress') {
 						loadingMessage = event.message;
 					} else if (event.type === 'done') {
-						overlayUrl = event.pngUrl;
-						overlayBounds = event.bounds;
+						tifBase64 = event.tifBase64;
+						handedOffToMap = true;
 					} else if (event.type === 'error') {
 						errorMessage = event.message || "Couldn't fetch crop data — try again";
 					}
@@ -143,7 +151,11 @@
 		} catch {
 			errorMessage = "Couldn't fetch crop data — try again";
 		} finally {
-			loadingMessage = '';
+			if (!handedOffToMap) {
+				loadingMessage = '';
+			}
+			// If handedOffToMap is true, MapView manages loadingMessage
+			// from here — it will clear it when GeoTIFF rendering finishes
 		}
 	}
 </script>
@@ -158,6 +170,7 @@
 		<RadiusSlider bind:radius />
 		<YearSelector bind:year />
 		<CropFilter bind:selected={cropFilters} />
+		<OpacitySlider bind:opacity={overlayOpacity} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
 	</Sidebar>
 
@@ -166,9 +179,9 @@
 			bind:center={mapCenter}
 			zoom={mapZoom}
 			{radius}
-			{overlayUrl}
-			{overlayBounds}
-			{loadingMessage}
+			{tifBase64}
+			{overlayOpacity}
+			bind:loadingMessage
 			{panVersion}
 			bind:errorMessage
 			bind:waypoints
