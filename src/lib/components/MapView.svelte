@@ -177,28 +177,23 @@
 					bytes[i] = binaryStr.charCodeAt(i);
 				}
 
-				const [parseGeoraster, GeoRasterLayer, proj4] = await Promise.all([
+				const [parseGeoraster, GeoRasterLayer] = await Promise.all([
 					import('georaster').then((m) => m.default),
-					import('georaster-layer-for-leaflet').then((m) => m.default),
-					import('proj4').then((m) => m.default)
+					import('georaster-layer-for-leaflet').then((m) => m.default)
 				]);
-
-				const { EPSG_5070 } = await import('$lib/projections');
-				proj4.defs('EPSG:5070', EPSG_5070);
-				// georaster-layer-for-leaflet resolves projections from window.proj4 globally,
-				// not just the instance passed via options — register it there too.
-				(window as typeof window & { proj4: unknown }).proj4 = proj4;
 
 				const georaster = await parseGeoraster(bytes.buffer);
 
 				if (tifBase64 !== currentTif) return;
 
 				const initialOpacity = untrack(() => overlayOpacity);
+				// No proj4 option — GeoRasterLayer uses proj4-fully-loaded internally,
+				// which already includes EPSG:5070. Passing our own proj4 instance
+				// would override that and break reprojection.
 				const layer = new GeoRasterLayer({
 					georaster,
 					opacity: initialOpacity,
-					resolution: 256,
-					proj4
+					resolution: 256
 				});
 				layer.addTo(map!);
 				overlay = layer;
