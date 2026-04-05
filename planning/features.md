@@ -49,13 +49,15 @@ All features from the initial build plan are complete, plus post-review improvem
 
 ---
 
+## In Progress (PR #2 — feature/geotiff-overlay)
+
+- [~] **GeoTIFF overlay via `georaster-layer-for-leaflet`** — Implemented; blocked by reprojection error at runtime. `georaster-layer-for-leaflet` v4 can't resolve EPSG:5070 in Vite's ESM/CJS bundling context. Diagnostic logging added; awaiting browser console output to determine root cause.
+- [~] **CDL overlay opacity control** — Implemented (OpacitySlider component, localStorage persisted); blocked by same render bug as above.
+- [~] **Area Summary / crop statistics** — Implemented client-side via `georaster.values[0]` pixel iteration (no server processing needed); blocked by same render bug.
+
 ## Planned (Near-Term Follow-ups)
 
 High-value features deferred from initial build:
-
-- [ ] **GeoTIFF overlay via `georaster-layer-for-leaflet`** ⚡ HIGH PRIORITY — The current PNG `imageOverlay` pixelates on zoom because it's a fixed-resolution bitmap. Fix: use the raster URL already returned by `GetCDLFile` / `ExtractCDLByValues` and render it with `georaster` + `georaster-layer-for-leaflet`, which re-renders tiles per zoom level so the overlay stays sharp at any zoom. Requires: `npm install georaster georaster-layer-for-leaflet`, server route to proxy raw `.tif` binary (instead of the PNG path), proj4 EPSG:5070 definition on the client for reprojection.
-- [ ] **CDL overlay opacity control** — slider to adjust crop overlay transparency
-- [ ] **Area Summary / crop statistics** — % breakdown per crop type (requires server-side raster processing)
 - [ ] **Year comparison** — toggle between two years' overlays
 - [ ] **Year opacity blending** — independent opacity per year for visual comparison
 
@@ -100,7 +102,7 @@ High-value features deferred from initial build:
 
 ## Blockers / Known Issues
 
-_None._
+- **GeoTIFF reprojection error (PR #2)**: `georaster-layer-for-leaflet` v4 throws "ran into an issue reprojecting" when rendering CDL data (EPSG:5070). Root cause: `reproject-bbox` uses `proj4-fully-loaded` which may not register EPSG:5070 under Vite's ESM/CJS interop. Setting `window.proj4` with the definition didn't resolve it (possibly because `proj4-fully-loaded.js`'s `proj4.defs(defs)` call silently fails in Vite). Awaiting `georaster.projection` value and `debugLevel:1` output from browser to confirm actual error path.
 
 ---
 

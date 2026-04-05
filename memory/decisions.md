@@ -201,6 +201,56 @@ related:
 
 ---
 
+### [2026-04-04] Replace PNG overlay with GeoTIFF + georaster-layer-for-leaflet
+
+**Decision:** Server downloads the raw `.tif` binary from CDL (skipping `GetCDLImage`), base64-encodes it, and sends it via SSE. The client decodes and renders it with `georaster` + `georaster-layer-for-leaflet` as a `GridLayer`.
+
+**Reason:** The PNG `imageOverlay` is a fixed-resolution bitmap — it pixelates when the user zooms in. `georaster-layer-for-leaflet` extends `L.GridLayer` and re-renders tiles per zoom level from the raw raster data, so the overlay stays sharp at any zoom.
+
+**Alternatives considered:** Fetching the PNG at higher resolution (CDL API doesn't support resolution parameter); keeping PNG with `maxNativeZoom` to lock zoom (hides the problem rather than solving it).
+
+---
+
+### [2026-04-04] Two separate `$effect`s for tifBase64 vs overlayOpacity in MapView
+
+**Decision:** One `$effect` tracks only `tifBase64` (triggers full decode + `parseGeoraster` + new layer). A second `$effect` tracks only `overlayOpacity` (calls `layer.setOpacity()` directly, no re-parse).
+
+**Reason:** Opacity changes should be instant. If opacity was a dependency of the main effect, every slider tick would trigger a full GeoTIFF re-parse (seconds of work). `untrack()` is used inside the main effect to read `overlay` (cleanup) and `overlayOpacity` (initial value) without registering them as reactive dependencies.
+
+**Alternatives considered:** A single combined effect with a stale-check flag (works, but harder to reason about); storing opacity as a separate layer option object (reactive overhead for no gain).
+
+---
+
+### [2026-04-04] `handedOffToMap` flag to coordinate loading state between page and MapView
+
+**Decision:** `handleSearch` in `+page.svelte` sets `handedOffToMap = true` when it receives the SSE `done` event (meaning the tif is ready). The `finally` block clears `loadingMessage` only if `handedOffToMap` is false.
+
+**Reason:** After the `done` event, `loadingMessage` is still needed — MapView takes ~1s to decode and render the GeoTIFF. If `finally` cleared it, the loading overlay would disappear before rendering finished. MapView clears `loadingMessage` itself when rendering completes.
+
+**Alternatives considered:** A shared loading state or event bus (overkill for two components); always clearing in `finally` (causes a flash where the overlay disappears mid-render).
+
+---
+
+### [2026-04-04] Client-side crop statistics from georaster.values
+
+**Decision:** `computeCropStats` iterates `georaster.values[0]` (the pixel value band) in the browser to count crop type occurrences and compute percentages.
+
+**Reason:** `georaster-layer-for-leaflet` already parses the full raster client-side — `georaster.values[0]` contains all pixel data. No extra server round-trip needed. The original `features.md` note said this "requires server-side raster processing" but that was written before the GeoTIFF pipeline was designed.
+
+**Alternatives considered:** Server-side pixel counting (extra API response data, more server work); using a Web Worker for the pixel iteration (unnecessary — it's fast enough on the main thread for typical CDL file sizes).
+
+---
+
+### [2026-04-04] Shared `src/lib/projections.ts` for EPSG:5070 proj4 string
+
+**Decision:** The EPSG:5070 Albers proj4 definition string lives in `src/lib/projections.ts` and is imported by both `src/lib/server/coordinates.ts` (server-side bbox projection) and client-side code.
+
+**Reason:** The string was previously hardcoded twice. A shared module avoids the strings diverging.
+
+**Alternatives considered:** Keeping it in `coordinates.ts` (server-only, can't import on client without breaking SSR boundaries); inlining both copies (duplication risk).
+
+---
+
 ### [2026-03-18] Stable session ID counter for waypoint markers
 
 **Decision:** Waypoints use an incrementing integer counter (`waypointIdCounter`) as a stable session ID. Two parallel Maps — `waypointData: Map<number, Waypoint>` and `waypointMarkers: Map<number, Marker>` — are keyed by this ID.
