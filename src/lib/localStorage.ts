@@ -9,7 +9,8 @@ const KEYS = {
 	radius: 'ff-last-radius',
 	crops: 'ff-crop-filters',
 	sidebar: 'ff-sidebar-collapsed',
-	waypoints: 'ff-waypoints'
+	waypoints: 'ff-waypoints',
+	opacity: 'ff-overlay-opacity'
 } as const;
 
 function safeGet<T>(key: string, storage?: Storage): T | null {
@@ -68,4 +69,12 @@ export function saveWaypoints(waypoints: Waypoint[], storage?: Storage): void {
 }
 export function getWaypoints(storage?: Storage): Waypoint[] {
 	return safeGet<Waypoint[]>(KEYS.waypoints, storage) ?? [];
+}
+
+// Overlay opacity
+export function saveOverlayOpacity(opacity: number, storage?: Storage): void {
+	safeSet(KEYS.opacity, opacity, storage);
+}
+export function getOverlayOpacity(storage?: Storage): number | null {
+	return safeGet<number>(KEYS.opacity, storage);
 }

@@ -5,8 +5,7 @@ import { fetchCdlData, type CdlProgressStep } from '$lib/server/cdl';
 
 const PROGRESS_MESSAGES: Record<CdlProgressStep, string> = {
 	fetching: 'Fetching crop data...',
-	extracting: 'Extracting crop information...',
-	preparing: 'Preparing crop image...'
+	extracting: 'Extracting crop information...'
 };
 
 export const POST: RequestHandler = async ({ request, fetch }) => {
@@ -39,7 +38,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 		error(400, 'Each crop value must be a number');
 	}
 
-	const { albers, latLon } = computeSearchBbox(lat, lon, radius);
+	const { albers } = computeSearchBbox(lat, lon, radius);
 	const encoder = new TextEncoder();
 
 	const stream = new ReadableStream({
@@ -49,35 +48,31 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			};
 
 			try {
-				const pngUrl = await fetchCdlData(
+				const rasterUrl = await fetchCdlData(
 					{ year, albers, crops },
 					fetch,
 					(step) => send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
 				);
 
-				if (typeof pngUrl !== 'string' || pngUrl.trim() === '') {
-					send({ type: 'error', message: 'CDL API returned an invalid image URL' });
+				if (typeof rasterUrl !== 'string' || rasterUrl.trim() === '') {
+					send({ type: 'error', message: 'CDL API returned an invalid raster URL' });
 					return;
 				}
 
-				send({ type: 'progress', message: 'Downloading image...' });
-				const pngResp = await fetch(pngUrl);
-				if (!pngResp.ok) {
-					send({ type: 'error', message: 'Failed to fetch crop image from CDL server' });
+				send({ type: 'progress', message: 'Downloading crop data...' });
+				const tifResp = await fetch(rasterUrl);
+				if (!tifResp.ok) {
+					send({
+						type: 'error',
+						message: 'Failed to download crop data from CDL server'
+					});
 					return;
 				}
 
-				const pngBuffer = await pngResp.arrayBuffer();
-				const base64 = Buffer.from(pngBuffer).toString('base64');
+				const tifBuffer = await tifResp.arrayBuffer();
+				const tifBase64 = Buffer.from(tifBuffer).toString('base64');
 
-				send({
-					type: 'done',
-					pngUrl: `data:image/png;base64,${base64}`,
-					bounds: [
-						[latLon.south, latLon.west],
-						[latLon.north, latLon.east]
-					]
-				});
+				send({ type: 'done', tifBase64 });
 			} catch (err) {
 				console.error('CDL API error:', err);
 				send({ type: 'error', message: 'Failed to fetch crop data from CDL API' });

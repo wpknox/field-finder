@@ -1,32 +1,35 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { computeBboxLatLon } from '$lib/geo';
 	import Legend from './Legend.svelte';
 	import ErrorToast from './ErrorToast.svelte';
 	import LoadingOverlay from './LoadingOverlay.svelte';
 	import type { Waypoint } from '$lib/localStorage';
+	import { computeCropStats, type CropStat } from '$lib/cropStats';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
 		radius = 10,
-		overlayUrl = '',
-		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
-		loadingMessage = '',
+		tifBase64 = '',
+		overlayOpacity = 0.7,
+		loadingMessage = $bindable(''),
 		panVersion = 0,
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
+		cropStats = $bindable<CropStat[]>([]),
 		onMapClick
 	}: {
 		center?: [number, number];
 		zoom?: number;
 		radius?: number;
-		overlayUrl?: string;
-		overlayBounds?: [[number, number], [number, number]];
+		tifBase64?: string;
+		overlayOpacity?: number;
 		loadingMessage?: string;
 		panVersion?: number;
 		errorMessage?: string;
 		waypoints?: Waypoint[];
+		cropStats?: CropStat[];
 		onMapClick?: (lat: number, lon: number) => void;
 	} = $props();
 
@@ -36,7 +39,7 @@
 	let map: import('leaflet').Map | undefined;
 	let marker: import('leaflet').Marker | undefined;
 	let bboxRect: import('leaflet').Rectangle | undefined;
-	let overlay: import('leaflet').ImageOverlay | undefined;
+	let overlay = $state<import('leaflet').GridLayer | undefined>(undefined);
 
 	// Internal Leaflet tracking maps — intentionally plain Map, not SvelteMap.
 	// The UI reads from the `waypoints` $state array; these maps are only used
@@ -149,20 +152,68 @@
 		}
 	});
 
-	// Crop overlay — replaces previous overlay when overlayUrl/overlayBounds change
+	// GeoTIFF overlay — decode, parse, and render when tifBase64 changes.
+	// Uses $state overlay so the opacity $effect can track it.
+	// Reads overlay and overlayOpacity via untrack() to avoid making them dependencies.
 	$effect(() => {
-		if (!mapReady || !map || !overlayUrl || !overlayBounds) return;
-		if (overlay) {
-			overlay.remove();
+		if (!mapReady || !map || !tifBase64) return;
+
+		const oldOverlay = untrack(() => overlay);
+		if (oldOverlay) {
+			map!.removeLayer(oldOverlay);
+			overlay = undefined;
+			cropStats = [];
 		}
-		import('leaflet').then((L) => {
-			overlay = L.imageOverlay(overlayUrl, overlayBounds!).addTo(
-				map!
-			);
-			overlay.on('error', () => {
-				errorMessage = 'Failed to load crop image — the data may not be available for this area';
-			});
-		});
+
+		const currentTif = tifBase64;
+
+		(async () => {
+			try {
+				loadingMessage = 'Rendering crop overlay...';
+
+				const binaryStr = atob(currentTif);
+				const bytes = new Uint8Array(binaryStr.length);
+				for (let i = 0; i < binaryStr.length; i++) {
+					bytes[i] = binaryStr.charCodeAt(i);
+				}
+
+				const [parseGeoraster, GeoRasterLayer] = await Promise.all([
+					import('georaster').then((m) => m.default),
+					import('georaster-layer-for-leaflet').then((m) => m.default)
+				]);
+
+				const georaster = await parseGeoraster(bytes.buffer);
+
+				if (tifBase64 !== currentTif) return;
+
+				const initialOpacity = untrack(() => overlayOpacity);
+				// No proj4 option — GeoRasterLayer uses proj4-fully-loaded internally,
+				// which already includes EPSG:5070. Passing our own proj4 instance
+				// would override that and break reprojection.
+				const layer = new GeoRasterLayer({
+					georaster,
+					opacity: initialOpacity,
+					resolution: 256
+				});
+				layer.addTo(map!);
+				overlay = layer;
+				cropStats = computeCropStats(georaster.values, georaster.noDataValue);
+				loadingMessage = '';
+			} catch (err) {
+				console.error('GeoTIFF rendering error:', err);
+				if (tifBase64 === currentTif) {
+					loadingMessage = '';
+					errorMessage = 'Failed to render crop overlay';
+				}
+			}
+		})();
+	});
+
+	// Opacity — reactively update when the slider changes, without re-parsing the GeoTIFF
+	$effect(() => {
+		if (overlay) {
+			overlay.setOpacity(overlayOpacity);
+		}
 	});
 
 	/** Returns the HTML string for a waypoint dot marker icon. */
