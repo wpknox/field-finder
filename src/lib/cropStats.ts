@@ -1,4 +1,4 @@
-import { getCropById } from './crops';
+import { getCropById, CDL_LABELS } from './crops';
 
 export interface CropStat {
 	id: number;
@@ -12,10 +12,12 @@ export interface CropStat {
  * Count pixel values from a georaster and return sorted crop statistics.
  * @param values - georaster.values (band × row × col)
  * @param noDataValue - value to exclude (typically 0), or null to include all
+ * @param palette - georaster.palette (256-entry RGBA array indexed by CDL value)
  */
 export function computeCropStats(
 	values: number[][][],
-	noDataValue: number | null
+	noDataValue: number | null,
+	palette?: Array<[number, number, number, number]> | null
 ): CropStat[] {
 	const counts = new Map<number, number>();
 	let total = 0;
@@ -34,13 +36,15 @@ export function computeCropStats(
 	const stats: CropStat[] = [];
 	for (const [id, count] of counts) {
 		const crop = getCropById(id);
-		stats.push({
-			id,
-			name: crop ? crop.name : `Other (ID: ${id})`,
-			color: crop ? crop.color : '#C0C0C0',
-			count,
-			percentage: (count / total) * 100
-		});
+		const name = crop?.name ?? CDL_LABELS[id] ?? `Unknown (ID: ${id})`;
+
+		let color = crop?.color ?? '#C0C0C0';
+		if (palette?.[id]) {
+			const [r, g, b] = palette[id];
+			color = `rgb(${r}, ${g}, ${b})`;
+		}
+
+		stats.push({ id, name, color, count, percentage: (count / total) * 100 });
 	}
 
 	stats.sort((a, b) => b.percentage - a.percentage);

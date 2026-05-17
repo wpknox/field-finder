@@ -39,7 +39,7 @@
 	let map: import('leaflet').Map | undefined;
 	let marker: import('leaflet').Marker | undefined;
 	let bboxRect: import('leaflet').Rectangle | undefined;
-	let overlay = $state<import('leaflet').GridLayer | undefined>(undefined);
+	let overlay = $state<import('leaflet').ImageOverlay | undefined>(undefined);
 
 	// Internal Leaflet tracking maps — intentionally plain Map, not SvelteMap.
 	// The UI reads from the `waypoints` $state array; these maps are only used
@@ -152,9 +152,11 @@
 		}
 	});
 
-	// GeoTIFF overlay — decode, parse, and render when tifBase64 changes.
-	// Uses $state overlay so the opacity $effect can track it.
-	// Reads overlay and overlayOpacity via untrack() to avoid making them dependencies.
+	// GeoTIFF overlay — decode, parse, render to canvas, place as imageOverlay.
+	// georaster handles pixel data + crop stats; toCanvas() renders once using the
+	// embedded CDL palette; imageOverlay places it with lat/lon bounds (no per-zoom
+	// re-render, so zooming stays smooth). Reads overlay and overlayOpacity via
+	// untrack() to avoid making them reactive dependencies.
 	$effect(() => {
 		if (!mapReady || !map || !tifBase64) return;
 
@@ -166,6 +168,11 @@
 		}
 
 		const currentTif = tifBase64;
+		// Capture search-time center/radius without registering as reactive deps —
+		// the overlay should stay pinned to the searched location even if the user
+		// drags the marker afterward.
+		const [lat, lon] = untrack(() => center);
+		const r = untrack(() => radius);
 
 		(async () => {
 			try {
@@ -177,27 +184,27 @@
 					bytes[i] = binaryStr.charCodeAt(i);
 				}
 
-				const [parseGeoraster, GeoRasterLayer] = await Promise.all([
-					import('georaster').then((m) => m.default),
-					import('georaster-layer-for-leaflet').then((m) => m.default)
-				]);
-
+				const parseGeoraster = await import('georaster').then((m) => m.default);
 				const georaster = await parseGeoraster(bytes.buffer);
 
 				if (tifBase64 !== currentTif) return;
 
+				cropStats = computeCropStats(georaster.values, georaster.noDataValue, georaster.palette);
+
+				const canvas = (georaster as any).toCanvas();
+				const dataUrl = canvas.toDataURL('image/png');
+
+				const bbox = computeBboxLatLon(lat, lon, r);
+				const bounds: [[number, number], [number, number]] = [
+					[bbox.south, bbox.west],
+					[bbox.north, bbox.east]
+				];
+
+				const L = await import('leaflet');
 				const initialOpacity = untrack(() => overlayOpacity);
-				// No proj4 option — GeoRasterLayer uses proj4-fully-loaded internally,
-				// which already includes EPSG:5070. Passing our own proj4 instance
-				// would override that and break reprojection.
-				const layer = new GeoRasterLayer({
-					georaster,
-					opacity: initialOpacity,
-					resolution: 256
-				});
+				const layer = L.imageOverlay(dataUrl, bounds, { opacity: initialOpacity });
 				layer.addTo(map!);
 				overlay = layer;
-				cropStats = computeCropStats(georaster.values, georaster.noDataValue);
 				loadingMessage = '';
 			} catch (err) {
 				console.error('GeoTIFF rendering error:', err);

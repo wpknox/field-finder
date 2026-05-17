@@ -12,6 +12,7 @@ declare module 'georaster' {
 		pixelWidth: number;
 		values: number[][][];
 		noDataValue: number | null;
+		palette: Array<[number, number, number, number]> | null;
 	}
 
 	export default function parseGeoraster(input: ArrayBuffer): Promise<GeoRaster>;

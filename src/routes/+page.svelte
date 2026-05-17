@@ -132,12 +132,17 @@
 
 			const reader = resp.body.getReader();
 			const decoder = new TextDecoder();
+			let buffer = '';
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
 
-				for (const line of decoder.decode(value).split('\n')) {
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop()!; // hold incomplete trailing line for next chunk
+
+				for (const line of lines) {
 					if (!line.startsWith('data: ')) continue;
 					const event = JSON.parse(line.slice(6));
 
@@ -174,8 +179,8 @@
 		<YearSelector bind:year />
 		<CropFilter bind:selected={cropFilters} />
 		<OpacitySlider bind:opacity={overlayOpacity} />
-		<AreaSummary stats={cropStats} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
+		<AreaSummary stats={cropStats} />
 	</Sidebar>
 
 	<main class="relative flex-1">
