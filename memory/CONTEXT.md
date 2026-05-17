@@ -21,8 +21,8 @@ related:
 
 ## Current State
 
-- **Phase**: PR #1 merged; now implementing GeoTIFF overlay feature
-- **Branch**: `feature/geotiff-overlay` — PR #2 open, has a reprojection bug blocking full function
+- **Phase**: PR #1 merged; PR #2 (`feature/geotiff-overlay`) fully working, ready to merge
+- **Branch**: `feature/geotiff-overlay`
 - **Worktree**: `.worktrees/feature-geotiff-overlay`
 - **GitHub**: https://github.com/wpknox/field-finder
 
@@ -54,23 +54,28 @@ Core v1 features (on `main`):
 - localStorage persistence for all user state
 - Styled sidebar header (green-800) with outlined Hide/Expand buttons
 
-GeoTIFF overlay branch (PR #2, bug blocking render):
+GeoTIFF overlay branch (PR #2 — fully working):
 
 - Server skips `GetCDLImage`; downloads raw `.tif` binary, base64-encodes, sends via SSE `done` event
-- `georaster` + `georaster-layer-for-leaflet` parse and render GeoTIFF as a `GridLayer` (tiles re-render per zoom — no pixelation)
+- **Hybrid render**: `georaster` parses the GeoTIFF → `georaster.toCanvas()` renders once using embedded CDL palette → `L.imageOverlay` places it with lat/lon bounds (smooth zoom, no per-tile re-render)
+- `georaster-layer-for-leaflet` was abandoned — caused per-zoom lag and reprojection issues with CDL's projection code 32767
 - Two-effect pattern in MapView: one tracks `tifBase64` (full re-parse), one tracks `overlayOpacity` (instant `setOpacity`, no re-parse)
-- `untrack()` used to read `overlay` (for cleanup) and `overlayOpacity` (initial value) without making them reactive dependencies
+- `untrack()` used to read `overlay` (for cleanup), `overlayOpacity` (initial value), and `center`/`radius` (search-time snapshot) without making them reactive dependencies
 - `handedOffToMap` flag in `handleSearch` — prevents `finally` from clearing `loadingMessage` when MapView is still rendering
 - OpacitySlider component; opacity persisted to localStorage
-- AreaSummary component — `computeCropStats` iterates `georaster.values[0]` client-side (no server round-trip)
+- AreaSummary component — collapsible, below Search button, only shown when stats present
+- `computeCropStats` accepts `georaster.palette` for exact CDL colors; uses `CDL_LABELS` for all 130 CDL value names
+- `CDL_LABELS: Record<number, string>` in `crops.ts` — complete 130-entry lookup for stats display
+- CROPS filter colors updated to approximate official CDL hex values (to be verified against palette when API is available)
 - `src/lib/projections.ts` — shared EPSG:5070 proj4 string, imported by both server (`coordinates.ts`) and client
 - `src/lib/cropStats.ts` + full test suite (4 tests)
 
 ## Key Technical Facts
 
 - CDL API calls **must be server-side** — CORS blocks browser-direct requests
-- **PNG is also proxied through the server** as a base64 data URL — NASS servers don't send CORS headers
-- **GeoTIFF branch**: server skips `GetCDLImage`, downloads raw `.tif` binary and base64-encodes it
+- Server skips `GetCDLImage`, downloads raw `.tif` binary and base64-encodes it for SSE `done` event
+- **SSE chunked buffering**: `+page.svelte` accumulates chunks in a `buffer` string, splits on `\n`, holds incomplete trailing lines — required because large base64 payloads span multiple chunks and `JSON.parse` fails on partial lines
+- CDL GeoTIFFs embed EPSG:5070 as projection code **32767** (user-defined) — not a standard EPSG lookup
 - Input coordinates: EPSG:4326 → projected to EPSG:5070 (Albers) for CDL bbox via proj4
 - CDL API is slow (seconds per request) — `/api/search` streams SSE progress events per step
 - Nominatim: 1 req/sec rate limit, `User-Agent: FieldFinder/1.0`, restricted to `countrycodes=us`
@@ -81,12 +86,12 @@ GeoTIFF overlay branch (PR #2, bug blocking render):
 - `waypointMarkers` and `waypointData` are plain `Map` (not `SvelteMap`) — intentional, UI reads from `waypoints` `$state` array
 - Marker drag: `drag` event directly calls `bboxRect.setBounds` (bypasses Svelte state); `dragend` syncs `center`
 - Map pan: `panVersion` counter prop on MapView, incremented only in `handleLocationSelect`
-- **GeoTIFF reprojection bug (PR #2)**: `georaster-layer-for-leaflet` v4 uses `reproject-bbox` → `proj4-fully-loaded`; EPSG:5070 may not register in Vite's ESM/CJS interop. Root cause under investigation — `georaster.projection` and library debug logs needed from browser to confirm. Setting `window.proj4` with EPSG:5070 tried but did not resolve. The `proj4` option in GeoRasterLayer is ignored in v4 (v3 ESM build uses `proj4collect()` internally, no `options.proj4` hook).
+- `overlay` in MapView is `L.ImageOverlay` (not GridLayer) — placed with lat/lon bounds captured at search time via `untrack()`
 
 ## Active Work / What We're Doing Now
 
-- PR #2 open (`feature/geotiff-overlay`) — GeoTIFF rendering hits reprojection error at runtime
-- Added `console.debug` for `georaster.projection` and `debugLevel: 1` to GeoRasterLayer; waiting for user to run and report browser console output to determine root cause
+- PR #2 (`feature/geotiff-overlay`) is working end-to-end — ready to merge when CDL API comes back up for final verification
+- CROPS filter colors are approximate CDL values; plan to verify exact hex against `georaster.palette` when API is available
 
 ## People / Roles
 

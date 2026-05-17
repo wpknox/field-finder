@@ -49,11 +49,12 @@ All features from the initial build plan are complete, plus post-review improvem
 
 ---
 
-## In Progress (PR #2 — feature/geotiff-overlay)
+## Implemented (PR #2 — feature/geotiff-overlay)
 
-- [~] **GeoTIFF overlay via `georaster-layer-for-leaflet`** — Implemented; blocked by reprojection error at runtime. `georaster-layer-for-leaflet` v4 can't resolve EPSG:5070 in Vite's ESM/CJS bundling context. Diagnostic logging added; awaiting browser console output to determine root cause.
-- [~] **CDL overlay opacity control** — Implemented (OpacitySlider component, localStorage persisted); blocked by same render bug as above.
-- [~] **Area Summary / crop statistics** — Implemented client-side via `georaster.values[0]` pixel iteration (no server processing needed); blocked by same render bug.
+- [x] **GeoTIFF overlay** — Server downloads raw `.tif`, base64-encodes via SSE. Client parses with `georaster`, renders via `toCanvas()` + `L.imageOverlay`. Smooth zoom (no per-tile re-render). `georaster-layer-for-leaflet` abandoned due to per-zoom lag and CDL projection code 32767 issues.
+- [x] **CDL overlay opacity control** — OpacitySlider component, localStorage persisted; `setOpacity()` on ImageOverlay without re-parsing.
+- [x] **Area Summary / crop statistics** — Collapsible section below Search button; `computeCropStats` uses `georaster.values[0]` for pixel counts and `georaster.palette` for exact CDL colors. `CDL_LABELS` covers all 130 CDL values for labeling.
+- [x] **Complete CDL value lookup** — `CDL_LABELS` record in `crops.ts` with all 130 CDL IDs and names; no more `Other (ID: X)` in stats.
 
 ## Planned (Near-Term Follow-ups)
 
@@ -102,7 +103,8 @@ High-value features deferred from initial build:
 
 ## Blockers / Known Issues
 
-- **GeoTIFF reprojection error (PR #2)**: `georaster-layer-for-leaflet` v4 throws "ran into an issue reprojecting" when rendering CDL data (EPSG:5070). Root cause: `reproject-bbox` uses `proj4-fully-loaded` which may not register EPSG:5070 under Vite's ESM/CJS interop. Setting `window.proj4` with the definition didn't resolve it (possibly because `proj4-fully-loaded.js`'s `proj4.defs(defs)` call silently fails in Vite). Awaiting `georaster.projection` value and `debugLevel:1` output from browser to confirm actual error path.
+- **CDL API intermittently down** — Requests hang at "Fetching crop data..." with no response. Not a code bug; upstream USDA NASS service issue. No workaround.
+- **CROPS filter colors unverified** — Hex values are approximate CDL colors from training data. Plan to verify against `georaster.palette[id]` for each of the 13 filter crops once API is stable.
 
 ---
 

@@ -251,6 +251,36 @@ related:
 
 ---
 
+### [2026-05-17] Buffer SSE stream to handle large base64 payloads
+
+**Decision:** `+page.svelte` accumulates SSE chunks in a `buffer` string, splits on `\n`, and holds any incomplete trailing line for the next chunk. Uses `decoder.decode(value, { stream: true })` for correct multi-byte handling.
+
+**Reason:** The GeoTIFF base64 payload (~400KB+) spans many TCP chunks. The previous code called `decoder.decode(value).split('\n')` per chunk — when the `data:` line for the `done` event was split across chunks, `JSON.parse` threw on the incomplete fragment, silently caught with no console output and showing the error toast.
+
+**Alternatives considered:** Sending the GeoTIFF via a separate HTTP endpoint instead of SSE (extra round-trip, more endpoints); reducing payload size server-side (would require re-encoding or compression).
+
+---
+
+### [2026-05-17] Hybrid GeoTIFF render: georaster.toCanvas() + L.imageOverlay
+
+**Decision:** The GeoTIFF is parsed with `georaster` for pixel data and crop stats, then rendered once to a canvas via `georaster.toCanvas()`, converted to a data URL, and placed on the map as `L.imageOverlay` using the lat/lon bounds from `computeBboxLatLon`.
+
+**Reason:** `georaster-layer-for-leaflet` (the previous approach) re-renders tiles on every zoom level, causing noticeable lag. It also failed to resolve CDL's projection code 32767 (user-defined EPSG:5070) despite various proj4 registration attempts. `L.imageOverlay` is a static bitmap — Leaflet scales it on zoom with no re-computation, identical performance to the original PNG overlay. The GeoTIFF is still fetched for `georaster.values` (crop stats) and `georaster.palette` (correct CDL colors).
+
+**Alternatives considered:** Lowering `resolution` further in GeoRasterLayer (reduced lag but didn't eliminate it, still had projection issues); going back to CDL's `GetCDLImage` PNG (loses client-side crop stats, adds one more API step).
+
+---
+
+### [2026-05-17] CDL_LABELS for comprehensive name lookup; georaster.palette for stat colors
+
+**Decision:** `crops.ts` exports `CDL_LABELS: Record<number, string>` covering all 130 CDL values. `computeCropStats` accepts `georaster.palette` (256-entry RGBA array indexed by CDL value ID) and uses it for colors when available, falling back to `CROPS` color then gray.
+
+**Reason:** Without `CDL_LABELS`, any CDL value not in the 13-entry `CROPS` filter dict appeared as `Other (ID: X)` in AreaSummary — most land cover types (forest, developed, shrubland, wetlands) were unlabeled. `georaster.palette` contains the exact official CDL colors embedded in the file, ensuring AreaSummary swatches match the rendered overlay precisely.
+
+**Alternatives considered:** Hardcoding all 130 colors in `CROPS` (would need to maintain a parallel color list; palette already has the right values); making filter checkbox colors reactive from the palette (colors would only be correct after first search — jarring UX).
+
+---
+
 ### [2026-03-18] Stable session ID counter for waypoint markers
 
 **Decision:** Waypoints use an incrementing integer counter (`waypointIdCounter`) as a stable session ID. Two parallel Maps — `waypointData: Map<number, Waypoint>` and `waypointMarkers: Map<number, Marker>` — are keyed by this ID.
