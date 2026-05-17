@@ -11,9 +11,6 @@ export function buildExtractUrl(rasterUrl: string, cropValues: number[]): string
 	return `${CDL_BASE}/ExtractCDLByValues?file=${encodeURIComponent(rasterUrl)}&values=${cropValues.join(',')}`;
 }
 
-export function buildImageUrl(rasterUrl: string): string {
-	return `${CDL_BASE}/GetCDLImage?files=${encodeURIComponent(rasterUrl)}&format=png`;
-}
 
 /**
  * Parse the <returnURL> or <returnURLArray> element from CDL API XML response.
@@ -34,14 +31,14 @@ export interface CdlRequest {
 	crops: number[];
 }
 
-export type CdlProgressStep = 'fetching' | 'extracting' | 'preparing';
+export type CdlProgressStep = 'fetching' | 'extracting';
 
 /**
  * Execute the CDL API call chain:
  * 1. GetCDLFile → raster URL
  * 2. ExtractCDLByValues → filtered raster URL (if crops specified)
- * 3. GetCDLImage → PNG URL
  *
+ * Returns the raster (.tif) URL directly — the client renders it with georaster.
  * Accepts an optional fetch function for testing and an optional onProgress
  * callback invoked before each step so callers can stream progress to clients.
  */
@@ -70,12 +67,5 @@ export async function fetchCdlData(
 		rasterUrl = parseReturnUrl(await extractResp.text());
 	}
 
-	// Step 3: Get PNG image
-	onProgress?.('preparing');
-	const imageUrl = buildImageUrl(rasterUrl);
-	const imageResp = await fetchFn(imageUrl);
-	if (!imageResp.ok) {
-		throw new Error(`CDL GetCDLImage failed: ${imageResp.status}`);
-	}
-	return parseReturnUrl(await imageResp.text());
+	return rasterUrl;
 }
