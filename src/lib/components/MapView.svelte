@@ -6,6 +6,7 @@
 	import LoadingOverlay from './LoadingOverlay.svelte';
 	import type { Waypoint } from '$lib/localStorage';
 	import { computeCropStats, type CropStat } from '$lib/cropStats';
+	import { rasterToDataUrl } from '$lib/renderGeoraster';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
@@ -153,10 +154,10 @@
 	});
 
 	// GeoTIFF overlay — decode, parse, render to canvas, place as imageOverlay.
-	// georaster handles pixel data + crop stats; toCanvas() renders once using the
-	// embedded CDL palette; imageOverlay places it with lat/lon bounds (no per-zoom
-	// re-render, so zooming stays smooth). Reads overlay and overlayOpacity via
-	// untrack() to avoid making them reactive dependencies.
+	// georaster handles pixel data + crop stats; rasterToDataUrl() renders once at
+	// native resolution using the embedded CDL palette; imageOverlay places it with
+	// lat/lon bounds (no per-zoom re-render, so zooming stays smooth). Reads overlay
+	// and overlayOpacity via untrack() to avoid making them reactive dependencies.
 	$effect(() => {
 		if (!mapReady || !map || !tifBase64) return;
 
@@ -191,8 +192,13 @@
 
 				cropStats = computeCropStats(georaster.values, georaster.noDataValue, georaster.palette);
 
-				const canvas = (georaster as any).toCanvas();
-				const dataUrl = canvas.toDataURL('image/png');
+				const dataUrl = rasterToDataUrl(
+					georaster.values[0],
+					georaster.width,
+					georaster.height,
+					georaster.noDataValue ?? 0,
+					georaster.palette
+				);
 
 				const bbox = computeBboxLatLon(lat, lon, r);
 				const bounds: [[number, number], [number, number]] = [
