@@ -190,13 +190,18 @@
 
 				if (tifBase64 !== currentTif) return;
 
-				cropStats = computeCropStats(georaster.values, georaster.noDataValue, georaster.palette);
+				// CDL value 0 is background, but georaster.noDataValue is null and
+				// palette[0] is opaque black — so null must be normalized to 0, or
+				// background pixels paint black on the map and get counted as a crop.
+				const noData = georaster.noDataValue ?? 0;
+
+				cropStats = computeCropStats(georaster.values, noData, georaster.palette);
 
 				const dataUrl = rasterToDataUrl(
 					georaster.values[0],
 					georaster.width,
 					georaster.height,
-					georaster.noDataValue ?? 0,
+					noData,
 					georaster.palette
 				);
 
