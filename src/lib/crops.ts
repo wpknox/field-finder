@@ -124,20 +124,34 @@ export const CDL_LABELS: Record<number, string> = {
 	254: 'Dbl Crop Barley/Soybeans'
 };
 
+/**
+ * Crop filter/legend entries.
+ *
+ * `color` is the ground-truth RGB from the CDL GeoTIFF's embedded colormap
+ * (`georaster.palette[id]`), captured from a live CDL response for the Eustis,
+ * NE reference area (year 2024). The overlay renderer paints each pixel with
+ * exactly `palette[value]`, so these hexes make the sidebar swatches and the map
+ * legend pixel-match the rendered overlay.
+ *
+ * Note: a few entries differ by 1 from the colors published on the CropScape
+ * legend page (e.g. corn is #FFD200 here, not #FFD300). The raster's colormap is
+ * authoritative — its 16-bit entries are exact multiples of 257, so these are
+ * not rounding artifacts.
+ */
 export const CROPS = {
-	corn: { id: 1, name: 'Corn', color: '#FFD300' },
+	corn: { id: 1, name: 'Corn', color: '#FFD200' },
 	sorghum: { id: 4, name: 'Sorghum', color: '#FF9E0A' },
-	soybeans: { id: 5, name: 'Soybeans', color: '#267000' },
-	sunflower: { id: 6, name: 'Sunflower', color: '#FFFF7C' },
-	barley: { id: 21, name: 'Barley', color: '#A57000' },
-	springWheat: { id: 23, name: 'Spring Wheat', color: '#D2B48C' },
-	winterWheat: { id: 24, name: 'Winter Wheat', color: '#A87000' },
-	oats: { id: 28, name: 'Oats', color: '#A5A5FF' },
-	alfalfa: { id: 36, name: 'Alfalfa', color: '#FF7272' },
-	fallow: { id: 61, name: 'Fallow/Idle', color: '#BFBF7F' },
-	openWater: { id: 111, name: 'Open Water', color: '#4169E1' },
-	pasture: { id: 176, name: 'Grassland/Pasture', color: '#E8FFB8' },
-	wetlands: { id: 190, name: 'Woody Wetlands', color: '#7AB6F5' }
+	soybeans: { id: 5, name: 'Soybeans', color: '#256F00' },
+	sunflower: { id: 6, name: 'Sunflower', color: '#FFFF00' },
+	barley: { id: 21, name: 'Barley', color: '#E1007B' },
+	springWheat: { id: 23, name: 'Spring Wheat', color: '#D7B56B' },
+	winterWheat: { id: 24, name: 'Winter Wheat', color: '#A46F00' },
+	oats: { id: 28, name: 'Oats', color: '#9F5888' },
+	alfalfa: { id: 36, name: 'Alfalfa', color: '#FFA4E1' },
+	fallow: { id: 61, name: 'Fallow/Idle', color: '#BEBE77' },
+	openWater: { id: 111, name: 'Open Water', color: '#4A6FA2' },
+	pasture: { id: 176, name: 'Grassland/Pasture', color: '#E8FFBE' },
+	wetlands: { id: 190, name: 'Woody Wetlands', color: '#7DB0B0' }
 } as const;
 
 export type CropKey = keyof typeof CROPS;

@@ -18,26 +18,28 @@ describe('computeCropStats', () => {
 		expect(stats[0]).toEqual({
 			id: 1,
 			name: 'Corn',
-			color: '#FFFF00',
+			color: '#FFD200',
 			count: 4,
 			percentage: (4 / 7) * 100
 		});
 		expect(stats[1]).toEqual({
 			id: 4,
 			name: 'Sorghum',
-			color: '#FF8C00',
+			color: '#FF9E0A',
 			count: 3,
 			percentage: (3 / 7) * 100
 		});
 	});
 
-	it('labels unknown crop IDs as "Other (ID: <n>)"', () => {
+	// 999 is outside CDL_LABELS, so it falls through both the CROPS lookup and the
+	// CDL_LABELS lookup to the last-resort "Unknown" label.
+	it('labels IDs absent from CROPS and CDL_LABELS as "Unknown (ID: <n>)"', () => {
 		const values = [[[999, 999, 1]]];
 		const stats = computeCropStats(values, 0);
 
 		expect(stats[0]).toMatchObject({
 			id: 999,
-			name: 'Other (ID: 999)',
+			name: 'Unknown (ID: 999)',
 			color: '#C0C0C0',
 			count: 2
 		});
