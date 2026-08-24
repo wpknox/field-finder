@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { getAllCrops } from '$lib/crops';
+	import { getAllCrops, resolveCropColors, type CropColors } from '$lib/crops';
+
+	// `colors` defaults to the hardcoded CROPS colors so the legend is correct
+	// before any raster exists; MapView overrides it from the live palette.
+	let { colors = resolveCropColors() }: { colors?: CropColors } = $props();
 
 	const crops = getAllCrops();
 	let collapsed = $state(false);
@@ -25,7 +29,7 @@
 					<div class="flex items-center gap-1.5 text-xs text-gray-600">
 						<span
 							class="inline-block h-2.5 w-2.5 rounded-sm"
-							style="background-color: {crop.color}"
+							style="background-color: {colors[crop.key]}"
 						></span>
 						{crop.name}
 					</div>

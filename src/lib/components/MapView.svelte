@@ -6,6 +6,7 @@
 	import LoadingOverlay from './LoadingOverlay.svelte';
 	import type { Waypoint } from '$lib/localStorage';
 	import { computeCropStats, type CropStat } from '$lib/cropStats';
+	import { resolveCropColors, type CdlPalette } from '$lib/crops';
 	import { rasterToDataUrl } from '$lib/renderGeoraster';
 
 	let {
@@ -19,6 +20,7 @@
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
 		cropStats = $bindable<CropStat[]>([]),
+		cropPalette = $bindable<CdlPalette | null>(null),
 		onMapClick
 	}: {
 		center?: [number, number];
@@ -31,8 +33,13 @@
 		errorMessage?: string;
 		waypoints?: Waypoint[];
 		cropStats?: CropStat[];
+		cropPalette?: CdlPalette | null;
 		onMapClick?: (lat: number, lon: number) => void;
 	} = $props();
+
+	// Colors the overlay is actually painted with — falls back to the hardcoded
+	// CROPS colors until a raster has been parsed.
+	const cropColors = $derived(resolveCropColors(cropPalette));
 
 	let mapContainer: HTMLDivElement;
 	let mapReady = $state(false);
@@ -196,6 +203,7 @@
 				const noData = georaster.noDataValue ?? 0;
 
 				cropStats = computeCropStats(georaster.values, noData, georaster.palette);
+				cropPalette = georaster.palette ?? null;
 
 				const dataUrl = rasterToDataUrl(
 					georaster.values[0],
@@ -324,7 +332,7 @@
 	<div bind:this={mapContainer} class="h-full w-full"></div>
 	<!-- Legend + map hint sit together at the bottom-left -->
 	<div class="absolute bottom-4 left-4 z-1000 flex items-end gap-3">
-		<Legend />
+		<Legend colors={cropColors} />
 		<p class="pointer-events-none mb-1 text-xs text-gray-400">
 			Right-click to add a waypoint &nbsp;·&nbsp; Drag the marker to reposition
 		</p>

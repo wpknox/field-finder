@@ -169,3 +169,45 @@ export function getAllCrops(): Array<{ key: CropKey } & CropEntry> {
 		...crop
 	}));
 }
+
+/** `georaster.palette` — 256 `[r, g, b, a]` tuples indexed by CDL value. Sparse. */
+export type CdlPalette = Array<[number, number, number, number]>;
+
+/** Effective display color per crop key. */
+export type CropColors = Record<CropKey, string>;
+
+function isChannel(n: unknown): boolean {
+	return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 255;
+}
+
+/**
+ * Convert one palette entry to a CSS color string.
+ *
+ * Returns null when the palette is absent, has no entry for `id`, or the entry
+ * is unusable (malformed tuple or fully transparent) — callers fall back to
+ * their own default in that case.
+ */
+export function paletteColor(palette: CdlPalette | null | undefined, id: number): string | null {
+	const entry = palette?.[id];
+	if (!Array.isArray(entry) || entry.length < 3) return null;
+	const [r, g, b, a] = entry;
+	if (!isChannel(r) || !isChannel(g) || !isChannel(b)) return null;
+	if (a === 0) return null;
+	return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * Resolve the color to display for each crop in the filter list and legend.
+ *
+ * The rendered overlay is painted straight from `georaster.palette`, so when a
+ * raster is loaded that palette is authoritative and its colors win. Before any
+ * search — or for any ID the palette doesn't usably cover — the hardcoded
+ * `CROPS[key].color` is used instead, so the UI is correct on first paint.
+ */
+export function resolveCropColors(palette?: CdlPalette | null): CropColors {
+	const colors = {} as CropColors;
+	for (const [key, crop] of Object.entries(CROPS) as Array<[CropKey, CropEntry]>) {
+		colors[key] = paletteColor(palette, crop.id) ?? crop.color;
+	}
+	return colors;
+}

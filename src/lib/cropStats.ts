@@ -1,4 +1,4 @@
-import { getCropById, CDL_LABELS } from './crops';
+import { getCropById, CDL_LABELS, paletteColor, type CdlPalette } from './crops';
 
 export interface CropStat {
 	id: number;
@@ -17,7 +17,7 @@ export interface CropStat {
 export function computeCropStats(
 	values: number[][][],
 	noDataValue: number | null,
-	palette?: Array<[number, number, number, number]> | null
+	palette?: CdlPalette | null
 ): CropStat[] {
 	const counts = new Map<number, number>();
 	let total = 0;
@@ -38,11 +38,7 @@ export function computeCropStats(
 		const crop = getCropById(id);
 		const name = crop?.name ?? CDL_LABELS[id] ?? `Unknown (ID: ${id})`;
 
-		let color = crop?.color ?? '#C0C0C0';
-		if (palette?.[id]) {
-			const [r, g, b] = palette[id];
-			color = `rgb(${r}, ${g}, ${b})`;
-		}
+		const color = paletteColor(palette, id) ?? crop?.color ?? '#C0C0C0';
 
 		stats.push({ id, name, color, count, percentage: (count / total) * 100 });
 	}

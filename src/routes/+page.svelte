@@ -11,7 +11,7 @@
 	import OpacitySlider from '$lib/components/OpacitySlider.svelte';
 	import AreaSummary from '$lib/components/AreaSummary.svelte';
 	import type { CropStat } from '$lib/cropStats';
-	import { CROPS, type CropKey } from '$lib/crops';
+	import { CROPS, resolveCropColors, type CdlPalette, type CropKey } from '$lib/crops';
 	import {
 		getSidebarCollapsed,
 		saveSidebarCollapsed,
@@ -39,6 +39,11 @@
 	let tifBase64 = $state('');
 	let overlayOpacity = $state(0.7);
 	let cropStats = $state<CropStat[]>([]);
+	// Colormap of the currently rendered raster, lifted out of MapView so the
+	// sidebar swatches match what the overlay actually paints. Null until the
+	// first raster is parsed, in which case the hardcoded colors are used.
+	let cropPalette = $state<CdlPalette | null>(null);
+	let cropColors = $derived(resolveCropColors(cropPalette));
 	let errorMessage = $state('');
 	let hasLocation = $state(false);
 	let searchQuery = $state('');
@@ -177,7 +182,7 @@
 			/>
 		<RadiusSlider bind:radius />
 		<YearSelector bind:year />
-		<CropFilter bind:selected={cropFilters} />
+		<CropFilter bind:selected={cropFilters} colors={cropColors} />
 		<OpacitySlider bind:opacity={overlayOpacity} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
 		<AreaSummary stats={cropStats} />
@@ -195,6 +200,7 @@
 			bind:errorMessage
 			bind:waypoints
 			bind:cropStats
+			bind:cropPalette
 			onMapClick={handleMapClick}
 		/>
 	</main>
