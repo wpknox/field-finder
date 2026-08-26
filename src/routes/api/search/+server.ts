@@ -48,10 +48,8 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			};
 
 			try {
-				const rasterUrl = await fetchCdlData(
-					{ year, albers, crops },
-					fetch,
-					(step) => send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
+				const rasterUrl = await fetchCdlData({ year, albers, crops }, fetch, (step) =>
+					send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
 				);
 
 				if (typeof rasterUrl !== 'string' || rasterUrl.trim() === '') {

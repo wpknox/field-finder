@@ -42,13 +42,11 @@ describe('fetchCdlData', () => {
 			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(
@@ -67,8 +65,7 @@ describe('fetchCdlData', () => {
 	it('returns raster URL directly when no crops filter', async () => {
 		const mockFetch = vi.fn().mockResolvedValueOnce({
 			ok: true,
-			text: async () =>
-				`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+			text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 		});
 
 		const result = await fetchCdlData(
@@ -89,13 +86,11 @@ describe('fetchCdlData', () => {
 			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			});
 
 		const steps: string[] = [];

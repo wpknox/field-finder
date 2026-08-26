@@ -11,7 +11,6 @@ export function buildExtractUrl(rasterUrl: string, cropValues: number[]): string
 	return `${CDL_BASE}/ExtractCDLByValues?file=${encodeURIComponent(rasterUrl)}&values=${cropValues.join(',')}`;
 }
 
-
 /**
  * Parse the <returnURL> or <returnURLArray> element from CDL API XML response.
  * GetCDLFile and ExtractCDLByValues return <returnURL>.

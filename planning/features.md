@@ -15,6 +15,7 @@ related:
 All features from the initial build plan are complete, plus post-review improvements.
 
 **Core v1:**
+
 - [x] Collapsible left sidebar with animated slide (width transition + overflow-hidden)
 - [x] Address search bar with geocoding (Nominatim, US-only) + lat/lon coordinate input
 - [x] Lat/lon coordinate display below search bar (updates on map click or address select)
@@ -36,6 +37,7 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] localStorage persistence (location, radius, crop filters, waypoints, sidebar state)
 
 **PR review polish:**
+
 - [x] SSE-streamed step progress messages during CDL fetch ("Fetching...", "Extracting...", "Preparing...")
 - [x] Draggable center marker — bounding box live-updates during drag
 - [x] Map pans to follow marker when location set via search (not on drag/click)
@@ -59,6 +61,7 @@ All features from the initial build plan are complete, plus post-review improvem
 ## Planned (Near-Term Follow-ups)
 
 High-value features deferred from initial build:
+
 - [ ] **Year comparison** — toggle between two years' overlays
 - [ ] **Year opacity blending** — independent opacity per year for visual comparison
 

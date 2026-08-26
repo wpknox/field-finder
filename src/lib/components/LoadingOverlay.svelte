@@ -20,7 +20,9 @@
 	<div
 		class="pointer-events-none absolute inset-0 z-1000 flex items-center justify-center bg-white/40"
 	>
-		<div class="flex items-center gap-3 rounded-lg bg-white px-5 py-3 text-sm font-semibold shadow-lg">
+		<div
+			class="flex items-center gap-3 rounded-lg bg-white px-5 py-3 text-sm font-semibold shadow-lg"
+		>
 			<!-- Spinner -->
 			<svg
 				class="h-4 w-4 animate-spin text-green-700"
@@ -37,7 +39,9 @@
 				/>
 			</svg>
 			<!-- Message with oscillating dots -->
-			<span class="text-gray-800">{message}<span class="inline-block w-5 text-left">{dots}</span></span>
+			<span class="text-gray-800"
+				>{message}<span class="inline-block w-5 text-left">{dots}</span></span
+			>
 		</div>
 	</div>
 {/if}

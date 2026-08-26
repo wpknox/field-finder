@@ -28,6 +28,7 @@ Work happens in the existing worktree `.worktrees/feature-geotiff-overlay` on br
 ### Task 1: Pure raster→RGBA conversion function
 
 **Files:**
+
 - Create: `src/lib/renderGeoraster.ts`
 - Test: `src/lib/renderGeoraster.spec.ts`
 
@@ -119,7 +120,11 @@ export function rasterToDataUrl(
 	canvas.width = width;
 	canvas.height = height;
 	const ctx = canvas.getContext('2d')!;
-	ctx.putImageData(new ImageData(rasterToRgba(band, width, height, noDataValue, palette), width, height), 0, 0);
+	ctx.putImageData(
+		new ImageData(rasterToRgba(band, width, height, noDataValue, palette), width, height),
+		0,
+		0
+	);
 	return canvas.toDataURL('image/png');
 }
 ```
@@ -148,6 +153,7 @@ git commit -m "feat: palette-based full-resolution raster to RGBA conversion"
 ### Task 2: Wire into MapView
 
 **Files:**
+
 - Modify: `src/lib/components/MapView.svelte:194-195` (the `toCanvas()` lines inside the tifBase64 `$effect`)
 
 - [ ] **Step 1: Replace toCanvas with rasterToDataUrl**
@@ -231,6 +237,7 @@ One commit per fix, each with the failing observation in the message.
 ### Task 4: Sync living docs
 
 **Files:**
+
 - Modify: `memory/CONTEXT.md` (in the MAIN checkout `/Users/wpknox/Projects/field-finder`, since memory files live on main)
 - Modify: `memory/decisions.md` (append-only)
 - Modify: `planning/features.md`

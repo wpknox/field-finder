@@ -176,10 +176,10 @@
 <div class="flex h-screen w-screen overflow-hidden">
 	<Sidebar bind:collapsed={sidebarCollapsed}>
 		<SearchBar
-				bind:query={searchQuery}
-				center={hasLocation ? mapCenter : undefined}
-				onLocationSelect={handleLocationSelect}
-			/>
+			bind:query={searchQuery}
+			center={hasLocation ? mapCenter : undefined}
+			onLocationSelect={handleLocationSelect}
+		/>
 		<RadiusSlider bind:radius />
 		<YearSelector bind:year />
 		<CropFilter bind:selected={cropFilters} colors={cropColors} />

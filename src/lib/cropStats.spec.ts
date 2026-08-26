@@ -46,7 +46,12 @@ describe('computeCropStats', () => {
 	});
 
 	it('returns empty array for all-nodata raster', () => {
-		const values = [[[0, 0], [0, 0]]];
+		const values = [
+			[
+				[0, 0],
+				[0, 0]
+			]
+		];
 		const stats = computeCropStats(values, 0);
 		expect(stats).toEqual([]);
 	});
