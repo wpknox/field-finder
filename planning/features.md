@@ -49,9 +49,9 @@ All features from the initial build plan are complete, plus post-review improvem
 
 ---
 
-## Implemented (PR #2 — feature/geotiff-overlay, verified working, still unmerged)
+## Implemented (PR #2 — merged to `main` 2026-08-26)
 
-- [x] **GeoTIFF overlay** — Server downloads raw `.tif`, base64-encodes via SSE. Client parses with `georaster`, renders via the custom `rasterToDataUrl()` (`src/lib/renderGeoraster.ts`) + `L.imageOverlay`. Full native resolution, colors from the embedded `georaster.palette`. Smooth zoom (no per-tile re-render). `georaster-layer-for-leaflet` was abandoned due to per-zoom lag and CDL projection code 32767 issues; `georaster.toCanvas()` was abandoned after that because it caps output at 100×100 and renders grayscale only, ignoring the palette. Live-verified 2026-08-23 (Playwright): 1114×1128 output, 30 correct palette colors, pixel ratios matching Area Summary percentages. PR #2 is open and unmerged pending a human merge decision.
+- [x] **GeoTIFF overlay** — Server downloads raw `.tif`, base64-encodes via SSE. Client parses with `georaster`, renders via the custom `rasterToDataUrl()` (`src/lib/renderGeoraster.ts`) + `L.imageOverlay`. Full native resolution, colors from the embedded `georaster.palette`. Smooth zoom (no per-tile re-render). `georaster-layer-for-leaflet` was abandoned due to per-zoom lag and CDL projection code 32767 issues; `georaster.toCanvas()` was abandoned after that because it caps output at 100×100 and renders grayscale only, ignoring the palette. Live-verified 2026-08-23 (Playwright): 1114×1128 output, 30 correct palette colors, pixel ratios matching Area Summary percentages. Merged to `main` 2026-08-26 (`58d5a4c`).
 - [x] **CDL overlay opacity control** — OpacitySlider component, localStorage persisted; `setOpacity()` on ImageOverlay without re-parsing.
 - [x] **Area Summary / crop statistics** — Collapsible section below Search button; `computeCropStats` uses `georaster.values[0]` for pixel counts and `georaster.palette` for exact CDL colors. `CDL_LABELS` covers all 130 CDL values for labeling.
 - [x] **Complete CDL value lookup** — `CDL_LABELS` record in `crops.ts` with all 130 CDL IDs and names; no more `Other (ID: X)` in stats.

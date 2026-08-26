@@ -21,12 +21,12 @@ related:
 
 ## Current State
 
-- **Phase**: PR #1 merged; PR #2 (`feature/geotiff-overlay`) verified working end-to-end via live Playwright testing on 2026-08-23, still OPEN and unmerged pending a human merge decision
-- **Branch**: `feature/geotiff-overlay`
-- **Worktree**: `.worktrees/feature-geotiff-overlay`
+- **Phase**: PR #1 and PR #2 both merged. All GeoTIFF overlay work is now on `main` (merge commit `58d5a4c`, 2026-08-26). No feature branch or worktree is active.
+- **Branch**: `main`
+- **Worktree**: none
 - **GitHub**: https://github.com/wpknox/field-finder
 
-## What's Built (v1 + PR review polish + GeoTIFF branch)
+## What's Built (all on `main`)
 
 Core v1 features (on `main`):
 
@@ -54,7 +54,7 @@ Core v1 features (on `main`):
 - localStorage persistence for all user state
 - Styled sidebar header (green-800) with outlined Hide/Expand buttons
 
-GeoTIFF overlay branch (PR #2 — verified working, unmerged):
+GeoTIFF overlay (PR #2 — merged to `main` 2026-08-26):
 
 - Server skips `GetCDLImage`; downloads raw `.tif` binary, base64-encodes, sends via SSE `done` event
 - **Custom palette renderer**: `georaster` parses the GeoTIFF → `src/lib/renderGeoraster.ts`'s `rasterToDataUrl()` paints the raster to a canvas at native resolution, mapping each pixel through the embedded `georaster.palette` (noData transparent) → `L.imageOverlay` places the resulting PNG data URL with lat/lon bounds (smooth zoom, no per-tile re-render). `georaster.toCanvas()` was abandoned (see below).
@@ -68,7 +68,7 @@ GeoTIFF overlay branch (PR #2 — verified working, unmerged):
 - AreaSummary component — collapsible, below Search button, only shown when stats present
 - `computeCropStats` accepts `georaster.palette` for exact CDL colors; uses `CDL_LABELS` for all 130 CDL value names
 - `CDL_LABELS: Record<number, string>` in `crops.ts` — complete 130-entry lookup for stats display
-- CROPS filter colors updated to approximate official CDL hex values (to be verified against palette when API is available)
+- CROPS filter/legend colors verified against the real raster palette (`7778cb6`) and now resolved from the live `georaster.palette` at runtime via `resolveCropColors()` (`9cef53f`); hardcoded hexes remain as the pre-search fallback
 - `src/lib/projections.ts` — shared EPSG:5070 proj4 string, imported by both server (`coordinates.ts`) and client
 - `src/lib/cropStats.ts` + full test suite (4 tests)
 
@@ -92,7 +92,7 @@ GeoTIFF overlay branch (PR #2 — verified working, unmerged):
 
 ## Active Work / What We're Doing Now
 
-- PR #2 (`feature/geotiff-overlay`) is verified working end-to-end (live Playwright test, 2026-08-23) — still open, awaiting a human decision to merge
+- **Nothing in flight.** PR #2 merged 2026-08-26 (`58d5a4c`); `feature/geotiff-overlay` and its worktree were deleted. Suite is 51/51, `svelte-check` clean. Next candidates are the near-term follow-ups in `planning/features.md` (year comparison / year opacity blending).
 - **Known limitation (still true)**: the overlay paints an EPSG:5070 (Albers) raster onto a Mercator map via `imageOverlay`, causing minor placement skew. Per-pixel Albers→Mercator warping is unimplemented. Verification showed placement is acceptable in practice, but this is not "fixed."
 - **Resolved 2026-08-23 (commit `dbf4bcf`)**: at runtime `georaster.noDataValue` is `null` and `palette[0]` is opaque black (`[0,0,0,255]`), so the `?? 0` coalesce is load-bearing — without it value-0 background pixels paint as opaque black specks. The renderer coalesced but `computeCropStats` received the raw `null` and counted those pixels, producing a bogus `Unknown (ID: 0) — 0.2%` row in Area Summary. Fixed by hoisting one `const noData = georaster.noDataValue ?? 0` and passing it to both call sites. Verified live: the bogus row is gone and percentages still renormalize correctly (`computeCropStats` skips before incrementing `total`).
 - **Resolved 2026-08-23 (commit `7778cb6`)**: all 13 CROPS filter colors verified against the real `georaster.palette` from a live CDL raster — **12 of 13 were wrong** (only Sorghum was correct). Barley was brown rather than magenta, Oats periwinkle rather than purple; corrected values now match the semantic legend in `CLAUDE.md`. Corn is `#FFD200`, not the `#FFD300` CropScape publishes — confirmed from the raw TIFF `ColorMap` tag (green channel `53970` = `210 × 257`, a lossless 16→8-bit conversion), and the overlay renders from the raster. The 4 long-standing vitest failures were stale SPEC expectations, not implementation bugs; suite is now 42/42.
