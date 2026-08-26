@@ -38,7 +38,7 @@ When told to "check context" or "check decisions", use the `id` field to locate 
 `ff.py` is a Python terminal script that:
 
 1. Accepts a location (address geocoded via Nominatim, or raw lat/lon) and a radius in miles
-2. Accepts a year (2000–2024)
+2. Accepts a year (1997–2024)
 3. Calls the **USDA NASS CropScape CDL API** to fetch a raster crop data file for the bounding box
 4. Optionally filters to specific crop types (sorghum, wheat, oats, alfalfa, etc.)
 5. Downloads a PNG image of the crop layer

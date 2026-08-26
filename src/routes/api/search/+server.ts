@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { computeSearchBbox } from '$lib/server/coordinates';
 import { fetchCdlData, type CdlProgressStep } from '$lib/server/cdl';
+import { CDL_MIN_YEAR, CDL_MAX_YEAR } from '$lib/constants';
 
 const PROGRESS_MESSAGES: Record<CdlProgressStep, string> = {
 	fetching: 'Fetching crop data...',
@@ -28,8 +29,8 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 	if (typeof radius !== 'number' || radius < 1 || radius > 50) {
 		error(400, 'radius must be between 1 and 50');
 	}
-	if (typeof year !== 'number' || year < 1997 || year > 2024) {
-		error(400, 'year must be between 1997 and 2024');
+	if (typeof year !== 'number' || year < CDL_MIN_YEAR || year > CDL_MAX_YEAR) {
+		error(400, `year must be between ${CDL_MIN_YEAR} and ${CDL_MAX_YEAR}`);
 	}
 	if (!Array.isArray(crops)) {
 		error(400, 'crops must be an array of CDL value IDs');

@@ -22,7 +22,7 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] Search bar clears when user clicks on the map
 - [x] Interactive Leaflet map with click-to-set-location
 - [x] Radius slider (1–50 mi, default 10, amber warning above 15)
-- [x] Year dropdown (1997–2024, default latest)
+- [x] Year dropdown (1997–2024, default latest — range lives in `src/lib/constants.ts`)
 - [x] Crop filter checkboxes with color swatches (persisted to localStorage)
 - [x] Hint when no crops selected: "No crops selected — all crop data will be shown"
 - [x] Explicit Search button (no auto-search)
@@ -90,7 +90,7 @@ High-value features deferred from initial build:
 - Must proxy CDL PNG server-side (NASS servers don't send CORS headers)
 - Coordinate projection: input EPSG:4326 → bounding box EPSG:5070 (Albers) for CDL API
 - CDL API returns XML; must parse `returnURL` and `returnURLArray` elements
-- Year range currently supported by CDL: 1997–2024 (validate on input)
+- Year range currently supported by CDL: 1997–2024 (validate on input) — single source of truth is `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`)
 - Radius capped at 50 miles to avoid huge/slow requests
 
 ### Non-Functional

@@ -13,6 +13,7 @@
 	import type { CropStat } from '$lib/cropStats';
 	import type { SearchResult } from '$lib/searchResult';
 	import { CROPS, resolveCropColors, type CdlPalette, type CropKey } from '$lib/crops';
+	import { CDL_MAX_YEAR } from '$lib/constants';
 	import {
 		getSidebarCollapsed,
 		saveSidebarCollapsed,
@@ -33,7 +34,7 @@
 	let mapCenter = $state<[number, number]>([39.8, -98.5]);
 	let mapZoom = $state(5);
 	let radius = $state(10);
-	let year = $state(2024);
+	let year = $state(CDL_MAX_YEAR);
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
 	let loadingMessage = $state('');
 	let loading = $derived(loadingMessage !== '');

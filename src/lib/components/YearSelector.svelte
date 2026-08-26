@@ -1,9 +1,8 @@
 <!-- src/lib/components/YearSelector.svelte -->
 <script lang="ts">
-	let { year = $bindable(2024) }: { year?: number } = $props();
+	import { CDL_MAX_YEAR, CDL_YEARS } from '$lib/constants';
 
-	// CDL data available from 1997-2024
-	const years = Array.from({ length: 2024 - 1997 + 1 }, (_, i) => 2024 - i);
+	let { year = $bindable(CDL_MAX_YEAR) }: { year?: number } = $props();
 </script>
 
 <div>
@@ -13,7 +12,7 @@
 		bind:value={year}
 		class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
 	>
-		{#each years as y (y)}
+		{#each CDL_YEARS as y (y)}
 			<option value={y}>{y}</option>
 		{/each}
 	</select>
