@@ -10,6 +10,12 @@
 	import { rasterToDataUrl } from '$lib/renderGeoraster';
 	import type { SearchResult } from '$lib/searchResult';
 
+	// Two sources of center/radius live here, and they are NOT interchangeable:
+	//   • live `center` / `radius` — drive the marker and the bbox preview rectangle,
+	//     and must track the user's drags in real time.
+	//   • `searchResult.{lat,lon,radius}` — the frozen bbox the raster was actually
+	//     fetched for, and the only thing the overlay may be placed with.
+	// Never mix them: using the live values for the overlay is exactly audit B2.
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
@@ -182,7 +188,12 @@
 		// since. A new object per search also guarantees this effect re-runs even
 		// when two searches return identical raster bytes. See audit B2/B3.
 		const currentResult = searchResult;
-		const { tifBase64: currentTif, lat, lon, radius: r } = currentResult;
+		const {
+			tifBase64: currentTif,
+			lat: searchLat,
+			lon: searchLon,
+			radius: searchRadius
+		} = currentResult;
 
 		(async () => {
 			try {
@@ -215,7 +226,7 @@
 					georaster.palette
 				);
 
-				const bbox = computeBboxLatLon(lat, lon, r);
+				const bbox = computeBboxLatLon(searchLat, searchLon, searchRadius);
 				const bounds: [[number, number], [number, number]] = [
 					[bbox.south, bbox.west],
 					[bbox.north, bbox.east]
