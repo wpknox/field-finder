@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseReturnUrl, buildCdlFileUrl, buildExtractUrl, fetchCdlData } from './cdl';
+import {
+	parseReturnUrl,
+	buildCdlFileUrl,
+	buildExtractUrl,
+	fetchCdlData,
+	CdlTimeoutError
+} from './cdl';
 
 describe('URL builders', () => {
 	it('buildCdlFileUrl constructs correct URL with bbox', () => {
@@ -105,5 +111,56 @@ describe('fetchCdlData', () => {
 		);
 
 		expect(steps).toEqual(['fetching', 'extracting']);
+	});
+});
+
+describe('fetchCdlData timeouts', () => {
+	it('rejects with CdlTimeoutError when the CDL API never responds', async () => {
+		// A fetch that only ever settles by rejecting when the caller aborts —
+		// exactly how a hung upstream behaves with an AbortSignal attached.
+		const hangingFetch = vi.fn(
+			(_url: string, init?: RequestInit) =>
+				new Promise<Response>((_resolve, reject) => {
+					init?.signal?.addEventListener('abort', () =>
+						reject(new DOMException('The operation was aborted.', 'TimeoutError'))
+					);
+				})
+		) as unknown as typeof fetch;
+
+		await expect(
+			fetchCdlData(
+				{
+					year: 2024,
+					albers: { xMin: -300000, yMin: 1800000, xMax: -280000, yMax: 1820000 },
+					crops: []
+				},
+				hangingFetch,
+				undefined,
+				50
+			)
+		).rejects.toBeInstanceOf(CdlTimeoutError);
+	});
+
+	it('passes an AbortSignal to every CDL request', async () => {
+		const xml = '<returnURL>https://example.com/raster.tif</returnURL>';
+		const okFetch = vi.fn(
+			async () => new Response(xml, { status: 200 })
+		) as unknown as typeof fetch;
+
+		await fetchCdlData(
+			{
+				year: 2024,
+				albers: { xMin: -300000, yMin: 1800000, xMax: -280000, yMax: 1820000 },
+				crops: [4]
+			},
+			okFetch,
+			undefined,
+			5000
+		);
+
+		expect(vi.mocked(okFetch)).toHaveBeenCalledTimes(2);
+		for (const [, init] of vi.mocked(okFetch).mock.calls) {
+			expect((init as RequestInit | undefined)?.signal).toBeInstanceOf(AbortSignal);
+		}
 	});
 });

@@ -1,7 +1,13 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { computeSearchBbox } from '$lib/server/coordinates';
-import { fetchCdlData, type CdlProgressStep } from '$lib/server/cdl';
+import {
+	fetchCdlData,
+	CdlTimeoutError,
+	CDL_TIMEOUT_MS,
+	isTimeoutError,
+	type CdlProgressStep
+} from '$lib/server/cdl';
 import { CDL_MIN_YEAR, CDL_MAX_YEAR } from '$lib/constants';
 
 const PROGRESS_MESSAGES: Record<CdlProgressStep, string> = {
@@ -59,7 +65,21 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 				}
 
 				send({ type: 'progress', message: 'Downloading crop data...' });
-				const tifResp = await fetch(rasterUrl);
+				let tifResp: Response;
+				try {
+					// The raster itself can be tens of MB, so it gets a longer budget
+					// than the two metadata calls.
+					tifResp = await fetch(rasterUrl, { signal: AbortSignal.timeout(CDL_TIMEOUT_MS * 2) });
+				} catch (err) {
+					if (isTimeoutError(err)) {
+						send({
+							type: 'error',
+							message: 'USDA CDL service is not responding — try again later'
+						});
+						return;
+					}
+					throw err;
+				}
 				if (!tifResp.ok) {
 					send({
 						type: 'error',
@@ -74,7 +94,13 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 				send({ type: 'done', tifBase64 });
 			} catch (err) {
 				console.error('CDL API error:', err);
-				send({ type: 'error', message: 'Failed to fetch crop data from CDL API' });
+				send({
+					type: 'error',
+					message:
+						err instanceof CdlTimeoutError
+							? 'USDA CDL service is not responding — try again later'
+							: 'Failed to fetch crop data from CDL API'
+				});
 			} finally {
 				controller.close();
 			}
