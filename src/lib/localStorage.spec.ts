@@ -10,6 +10,8 @@ import {
 	getSidebarCollapsed,
 	saveWaypoints,
 	getWaypoints,
+	saveOverlayOpacity,
+	getOverlayOpacity,
 	type Waypoint
 } from './localStorage';
 
@@ -79,5 +81,14 @@ describe('localStorage helpers', () => {
 	it('handles corrupted JSON gracefully', () => {
 		store['ff-last-location'] = '{not valid json';
 		expect(getLastLocation(mockLocalStorage)).toBeNull();
+	});
+
+	it('saves and retrieves overlay opacity', () => {
+		saveOverlayOpacity(0.7, mockLocalStorage);
+		expect(getOverlayOpacity(mockLocalStorage)).toBe(0.7);
+	});
+
+	it('returns null when no opacity saved', () => {
+		expect(getOverlayOpacity(mockLocalStorage)).toBeNull();
 	});
 });

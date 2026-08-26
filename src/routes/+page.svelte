@@ -8,7 +8,10 @@
 	import YearSelector from '$lib/components/YearSelector.svelte';
 	import CropFilter from '$lib/components/CropFilter.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
-	import { CROPS, type CropKey } from '$lib/crops';
+	import OpacitySlider from '$lib/components/OpacitySlider.svelte';
+	import AreaSummary from '$lib/components/AreaSummary.svelte';
+	import type { CropStat } from '$lib/cropStats';
+	import { CROPS, resolveCropColors, type CdlPalette, type CropKey } from '$lib/crops';
 	import {
 		getSidebarCollapsed,
 		saveSidebarCollapsed,
@@ -20,6 +23,8 @@
 		saveCropFilters,
 		getWaypoints,
 		saveWaypoints,
+		getOverlayOpacity,
+		saveOverlayOpacity,
 		type Waypoint
 	} from '$lib/localStorage';
 
@@ -31,8 +36,14 @@
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
 	let loadingMessage = $state('');
 	let loading = $derived(loadingMessage !== '');
-	let overlayUrl = $state('');
-	let overlayBounds = $state<[[number, number], [number, number]] | undefined>(undefined);
+	let tifBase64 = $state('');
+	let overlayOpacity = $state(0.7);
+	let cropStats = $state<CropStat[]>([]);
+	// Colormap of the currently rendered raster, lifted out of MapView so the
+	// sidebar swatches match what the overlay actually paints. Null until the
+	// first raster is parsed, in which case the hardcoded colors are used.
+	let cropPalette = $state<CdlPalette | null>(null);
+	let cropColors = $derived(resolveCropColors(cropPalette));
 	let errorMessage = $state('');
 	let hasLocation = $state(false);
 	let searchQuery = $state('');
@@ -58,6 +69,9 @@
 
 		const savedWaypoints = getWaypoints(localStorage);
 		if (savedWaypoints.length > 0) waypoints = savedWaypoints;
+
+		const savedOpacity = getOverlayOpacity(localStorage);
+		if (savedOpacity !== null) overlayOpacity = savedOpacity;
 	});
 
 	// Persist state changes to localStorage
@@ -72,6 +86,9 @@
 	});
 	$effect(() => {
 		saveWaypoints(waypoints, localStorage);
+	});
+	$effect(() => {
+		saveOverlayOpacity(overlayOpacity, localStorage);
 	});
 
 	function handleLocationSelect(lat: number, lon: number) {
@@ -94,13 +111,13 @@
 
 		loadingMessage = 'Starting...';
 		errorMessage = '';
-
-		// Collect selected crop IDs
-		const selectedCropIds = Object.entries(cropFilters)
-			.filter(([, checked]) => checked)
-			.map(([key]) => CROPS[key as CropKey].id);
+		let handedOffToMap = false;
 
 		try {
+			const selectedCropIds = Object.entries(cropFilters)
+				.filter(([, checked]) => checked)
+				.map(([key]) => CROPS[key as CropKey].id);
+
 			const resp = await fetch('/api/search', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -120,21 +137,25 @@
 
 			const reader = resp.body.getReader();
 			const decoder = new TextDecoder();
+			let buffer = '';
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
 
-				// SSE lines: "data: {...}\n\n"
-				for (const line of decoder.decode(value).split('\n')) {
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop()!; // hold incomplete trailing line for next chunk
+
+				for (const line of lines) {
 					if (!line.startsWith('data: ')) continue;
 					const event = JSON.parse(line.slice(6));
 
 					if (event.type === 'progress') {
 						loadingMessage = event.message;
 					} else if (event.type === 'done') {
-						overlayUrl = event.pngUrl;
-						overlayBounds = event.bounds;
+						tifBase64 = event.tifBase64;
+						handedOffToMap = true;
 					} else if (event.type === 'error') {
 						errorMessage = event.message || "Couldn't fetch crop data — try again";
 					}
@@ -143,7 +164,11 @@
 		} catch {
 			errorMessage = "Couldn't fetch crop data — try again";
 		} finally {
-			loadingMessage = '';
+			if (!handedOffToMap) {
+				loadingMessage = '';
+			}
+			// If handedOffToMap is true, MapView manages loadingMessage
+			// from here — it will clear it when GeoTIFF rendering finishes
 		}
 	}
 </script>
@@ -157,8 +182,10 @@
 			/>
 		<RadiusSlider bind:radius />
 		<YearSelector bind:year />
-		<CropFilter bind:selected={cropFilters} />
+		<CropFilter bind:selected={cropFilters} colors={cropColors} />
+		<OpacitySlider bind:opacity={overlayOpacity} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
+		<AreaSummary stats={cropStats} />
 	</Sidebar>
 
 	<main class="relative flex-1">
@@ -166,12 +193,14 @@
 			bind:center={mapCenter}
 			zoom={mapZoom}
 			{radius}
-			{overlayUrl}
-			{overlayBounds}
-			{loadingMessage}
+			{tifBase64}
+			{overlayOpacity}
+			bind:loadingMessage
 			{panVersion}
 			bind:errorMessage
 			bind:waypoints
+			bind:cropStats
+			bind:cropPalette
 			onMapClick={handleMapClick}
 		/>
 	</main>

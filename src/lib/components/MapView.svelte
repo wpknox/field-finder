@@ -1,34 +1,45 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { computeBboxLatLon } from '$lib/geo';
 	import Legend from './Legend.svelte';
 	import ErrorToast from './ErrorToast.svelte';
 	import LoadingOverlay from './LoadingOverlay.svelte';
 	import type { Waypoint } from '$lib/localStorage';
+	import { computeCropStats, type CropStat } from '$lib/cropStats';
+	import { resolveCropColors, type CdlPalette } from '$lib/crops';
+	import { rasterToDataUrl } from '$lib/renderGeoraster';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
 		radius = 10,
-		overlayUrl = '',
-		overlayBounds = undefined as [[number, number], [number, number]] | undefined,
-		loadingMessage = '',
+		tifBase64 = '',
+		overlayOpacity = 0.7,
+		loadingMessage = $bindable(''),
 		panVersion = 0,
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
+		cropStats = $bindable<CropStat[]>([]),
+		cropPalette = $bindable<CdlPalette | null>(null),
 		onMapClick
 	}: {
 		center?: [number, number];
 		zoom?: number;
 		radius?: number;
-		overlayUrl?: string;
-		overlayBounds?: [[number, number], [number, number]];
+		tifBase64?: string;
+		overlayOpacity?: number;
 		loadingMessage?: string;
 		panVersion?: number;
 		errorMessage?: string;
 		waypoints?: Waypoint[];
+		cropStats?: CropStat[];
+		cropPalette?: CdlPalette | null;
 		onMapClick?: (lat: number, lon: number) => void;
 	} = $props();
+
+	// Colors the overlay is actually painted with — falls back to the hardcoded
+	// CROPS colors until a raster has been parsed.
+	const cropColors = $derived(resolveCropColors(cropPalette));
 
 	let mapContainer: HTMLDivElement;
 	let mapReady = $state(false);
@@ -36,7 +47,7 @@
 	let map: import('leaflet').Map | undefined;
 	let marker: import('leaflet').Marker | undefined;
 	let bboxRect: import('leaflet').Rectangle | undefined;
-	let overlay: import('leaflet').ImageOverlay | undefined;
+	let overlay = $state<import('leaflet').ImageOverlay | undefined>(undefined);
 
 	// Internal Leaflet tracking maps — intentionally plain Map, not SvelteMap.
 	// The UI reads from the `waypoints` $state array; these maps are only used
@@ -149,20 +160,86 @@
 		}
 	});
 
-	// Crop overlay — replaces previous overlay when overlayUrl/overlayBounds change
+	// GeoTIFF overlay — decode, parse, render to canvas, place as imageOverlay.
+	// georaster handles pixel data + crop stats; rasterToDataUrl() renders once at
+	// native resolution using the embedded CDL palette; imageOverlay places it with
+	// lat/lon bounds (no per-zoom re-render, so zooming stays smooth). Reads overlay
+	// and overlayOpacity via untrack() to avoid making them reactive dependencies.
 	$effect(() => {
-		if (!mapReady || !map || !overlayUrl || !overlayBounds) return;
-		if (overlay) {
-			overlay.remove();
+		if (!mapReady || !map || !tifBase64) return;
+
+		const oldOverlay = untrack(() => overlay);
+		if (oldOverlay) {
+			map!.removeLayer(oldOverlay);
+			overlay = undefined;
+			cropStats = [];
 		}
-		import('leaflet').then((L) => {
-			overlay = L.imageOverlay(overlayUrl, overlayBounds!).addTo(
-				map!
-			);
-			overlay.on('error', () => {
-				errorMessage = 'Failed to load crop image — the data may not be available for this area';
-			});
-		});
+
+		const currentTif = tifBase64;
+		// Capture search-time center/radius without registering as reactive deps —
+		// the overlay should stay pinned to the searched location even if the user
+		// drags the marker afterward.
+		const [lat, lon] = untrack(() => center);
+		const r = untrack(() => radius);
+
+		(async () => {
+			try {
+				loadingMessage = 'Rendering crop overlay...';
+
+				const binaryStr = atob(currentTif);
+				const bytes = new Uint8Array(binaryStr.length);
+				for (let i = 0; i < binaryStr.length; i++) {
+					bytes[i] = binaryStr.charCodeAt(i);
+				}
+
+				const parseGeoraster = await import('georaster').then((m) => m.default);
+				const georaster = await parseGeoraster(bytes.buffer);
+
+				if (tifBase64 !== currentTif) return;
+
+				// CDL value 0 is background, but georaster.noDataValue is null and
+				// palette[0] is opaque black — so null must be normalized to 0, or
+				// background pixels paint black on the map and get counted as a crop.
+				const noData = georaster.noDataValue ?? 0;
+
+				cropStats = computeCropStats(georaster.values, noData, georaster.palette);
+				cropPalette = georaster.palette ?? null;
+
+				const dataUrl = rasterToDataUrl(
+					georaster.values[0],
+					georaster.width,
+					georaster.height,
+					noData,
+					georaster.palette
+				);
+
+				const bbox = computeBboxLatLon(lat, lon, r);
+				const bounds: [[number, number], [number, number]] = [
+					[bbox.south, bbox.west],
+					[bbox.north, bbox.east]
+				];
+
+				const L = await import('leaflet');
+				const initialOpacity = untrack(() => overlayOpacity);
+				const layer = L.imageOverlay(dataUrl, bounds, { opacity: initialOpacity });
+				layer.addTo(map!);
+				overlay = layer;
+				loadingMessage = '';
+			} catch (err) {
+				console.error('GeoTIFF rendering error:', err);
+				if (tifBase64 === currentTif) {
+					loadingMessage = '';
+					errorMessage = 'Failed to render crop overlay';
+				}
+			}
+		})();
+	});
+
+	// Opacity — reactively update when the slider changes, without re-parsing the GeoTIFF
+	$effect(() => {
+		if (overlay) {
+			overlay.setOpacity(overlayOpacity);
+		}
 	});
 
 	/** Returns the HTML string for a waypoint dot marker icon. */
@@ -255,7 +332,7 @@
 	<div bind:this={mapContainer} class="h-full w-full"></div>
 	<!-- Legend + map hint sit together at the bottom-left -->
 	<div class="absolute bottom-4 left-4 z-1000 flex items-end gap-3">
-		<Legend />
+		<Legend colors={cropColors} />
 		<p class="pointer-events-none mb-1 text-xs text-gray-400">
 			Right-click to add a waypoint &nbsp;·&nbsp; Drag the marker to reposition
 		</p>

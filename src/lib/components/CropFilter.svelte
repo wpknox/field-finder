@@ -1,11 +1,15 @@
 <!-- src/lib/components/CropFilter.svelte -->
 <script lang="ts">
-	import { getAllCrops, type CropKey } from '$lib/crops';
+	import { getAllCrops, resolveCropColors, type CropColors, type CropKey } from '$lib/crops';
 
+	// `colors` defaults to the hardcoded CROPS colors so the swatches are correct
+	// on first paint; the page overrides it from the live raster palette.
 	let {
-		selected = $bindable<Record<CropKey, boolean>>({} as Record<CropKey, boolean>)
+		selected = $bindable<Record<CropKey, boolean>>({} as Record<CropKey, boolean>),
+		colors = resolveCropColors()
 	}: {
 		selected?: Record<CropKey, boolean>;
+		colors?: CropColors;
 	} = $props();
 
 	const crops = getAllCrops();
@@ -47,7 +51,8 @@
 		{#each crops as crop (crop.key)}
 			<label class="flex items-center gap-2 text-sm text-gray-700">
 				<input type="checkbox" bind:checked={selected[crop.key]} class="rounded" />
-				<span class="inline-block h-3 w-3 rounded-sm" style="background-color: {crop.color}"></span>
+				<span class="inline-block h-3 w-3 rounded-sm" style="background-color: {colors[crop.key]}"
+				></span>
 				{crop.name}
 			</label>
 		{/each}

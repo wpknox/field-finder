@@ -1,11 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-	parseReturnUrl,
-	buildCdlFileUrl,
-	buildExtractUrl,
-	buildImageUrl,
-	fetchCdlData
-} from './cdl';
+import { parseReturnUrl, buildCdlFileUrl, buildExtractUrl, fetchCdlData } from './cdl';
 
 describe('URL builders', () => {
 	it('buildCdlFileUrl constructs correct URL with bbox', () => {
@@ -25,12 +19,6 @@ describe('URL builders', () => {
 		expect(url).toContain('ExtractCDLByValues');
 		expect(url).toContain('values=4,24,6');
 	});
-
-	it('buildImageUrl constructs correct URL', () => {
-		const url = buildImageUrl('https://example.com/raster.tif');
-		expect(url).toContain('GetCDLImage');
-		expect(url).toContain('format=png');
-	});
 });
 
 describe('parseReturnUrl', () => {
@@ -49,20 +37,18 @@ describe('parseReturnUrl', () => {
 });
 
 describe('fetchCdlData', () => {
-	it('calls the CDL API chain and returns a PNG URL', async () => {
+	it('calls GetCDLFile and ExtractCDLByValues, returns filtered raster URL', async () => {
 		const mockFetch = vi
 			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () =>
+					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
+				text: async () =>
+					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(
@@ -74,21 +60,16 @@ describe('fetchCdlData', () => {
 			mockFetch as unknown as typeof fetch
 		);
 
-		expect(result).toBe('https://nassgeodata.gmu.edu/image.png');
-		expect(mockFetch).toHaveBeenCalledTimes(3);
+		expect(result).toBe('https://nassgeodata.gmu.edu/filtered.tif');
+		expect(mockFetch).toHaveBeenCalledTimes(2);
 	});
 
-	it('skips ExtractCDLByValues when no crops filter provided', async () => {
-		const mockFetch = vi
-			.fn()
-			.mockResolvedValueOnce({
-				ok: true,
-				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
-			})
-			.mockResolvedValueOnce({
-				ok: true,
-				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/image.png</returnURL></r>`
-			});
+	it('returns raster URL directly when no crops filter', async () => {
+		const mockFetch = vi.fn().mockResolvedValueOnce({
+			ok: true,
+			text: async () =>
+				`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+		});
 
 		const result = await fetchCdlData(
 			{
@@ -99,7 +80,35 @@ describe('fetchCdlData', () => {
 			mockFetch as unknown as typeof fetch
 		);
 
-		expect(result).toBe('https://nassgeodata.gmu.edu/image.png');
-		expect(mockFetch).toHaveBeenCalledTimes(2);
+		expect(result).toBe('https://nassgeodata.gmu.edu/raster.tif');
+		expect(mockFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it('invokes onProgress for each step', async () => {
+		const mockFetch = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				text: async () =>
+					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				text: async () =>
+					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+			});
+
+		const steps: string[] = [];
+		await fetchCdlData(
+			{
+				year: 2024,
+				albers: { xMin: -300000, yMin: 1800000, xMax: -280000, yMax: 1820000 },
+				crops: [4, 24]
+			},
+			mockFetch as unknown as typeof fetch,
+			(step) => steps.push(step)
+		);
+
+		expect(steps).toEqual(['fetching', 'extracting']);
 	});
 });
