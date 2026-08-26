@@ -135,11 +135,12 @@
 	});
 
 	// Pan map when the parent signals a new location was selected (address search / lat-lon input).
-	// panVersion is only incremented by handleLocationSelect, not by map clicks or marker drag,
-	// so this won't fight with interactions where the map is already at the right position.
+	// panVersion is only incremented by handleLocationSelect, not by map clicks or marker drag.
+	// center is read untracked so that panVersion is the effect's ONLY reactive dependency —
+	// otherwise a click or drag (which changes center) would re-pan the map. See audit B1.
 	$effect(() => {
 		if (!mapReady || !map || panVersion === 0) return;
-		const [lat, lon] = center;
+		const [lat, lon] = untrack(() => center);
 		map.panTo([lat, lon]);
 	});
 
