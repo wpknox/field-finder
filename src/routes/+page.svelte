@@ -11,6 +11,7 @@
 	import OpacitySlider from '$lib/components/OpacitySlider.svelte';
 	import AreaSummary from '$lib/components/AreaSummary.svelte';
 	import type { CropStat } from '$lib/cropStats';
+	import type { SearchResult } from '$lib/searchResult';
 	import { CROPS, resolveCropColors, type CdlPalette, type CropKey } from '$lib/crops';
 	import {
 		getSidebarCollapsed,
@@ -36,7 +37,7 @@
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
 	let loadingMessage = $state('');
 	let loading = $derived(loadingMessage !== '');
-	let tifBase64 = $state('');
+	let searchResult = $state<SearchResult | null>(null);
 	let overlayOpacity = $state(0.7);
 	let cropStats = $state<CropStat[]>([]);
 	// Colormap of the currently rendered raster, lifted out of MapView so the
@@ -113,6 +114,13 @@
 		errorMessage = '';
 		let handedOffToMap = false;
 
+		// Snapshot the search parameters up front — the user is free to move the
+		// marker or the radius slider while the multi-second fetch is in flight,
+		// and the overlay must be placed where the search actually happened.
+		const searchLat = mapCenter[0];
+		const searchLon = mapCenter[1];
+		const searchRadius = radius;
+
 		try {
 			const selectedCropIds = Object.entries(cropFilters)
 				.filter(([, checked]) => checked)
@@ -122,9 +130,9 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					lat: mapCenter[0],
-					lon: mapCenter[1],
-					radius,
+					lat: searchLat,
+					lon: searchLon,
+					radius: searchRadius,
 					year,
 					crops: selectedCropIds
 				})
@@ -154,7 +162,12 @@
 					if (event.type === 'progress') {
 						loadingMessage = event.message;
 					} else if (event.type === 'done') {
-						tifBase64 = event.tifBase64;
+						searchResult = {
+							tifBase64: event.tifBase64,
+							lat: searchLat,
+							lon: searchLon,
+							radius: searchRadius
+						};
 						handedOffToMap = true;
 					} else if (event.type === 'error') {
 						errorMessage = event.message || "Couldn't fetch crop data — try again";
@@ -193,7 +206,7 @@
 			bind:center={mapCenter}
 			zoom={mapZoom}
 			{radius}
-			{tifBase64}
+			{searchResult}
 			{overlayOpacity}
 			bind:loadingMessage
 			{panVersion}

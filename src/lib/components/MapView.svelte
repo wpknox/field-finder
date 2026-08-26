@@ -8,12 +8,13 @@
 	import { computeCropStats, type CropStat } from '$lib/cropStats';
 	import { resolveCropColors, type CdlPalette } from '$lib/crops';
 	import { rasterToDataUrl } from '$lib/renderGeoraster';
+	import type { SearchResult } from '$lib/searchResult';
 
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
 		radius = 10,
-		tifBase64 = '',
+		searchResult = null,
 		overlayOpacity = 0.7,
 		loadingMessage = $bindable(''),
 		panVersion = 0,
@@ -26,7 +27,7 @@
 		center?: [number, number];
 		zoom?: number;
 		radius?: number;
-		tifBase64?: string;
+		searchResult?: SearchResult | null;
 		overlayOpacity?: number;
 		loadingMessage?: string;
 		panVersion?: number;
@@ -167,7 +168,7 @@
 	// lat/lon bounds (no per-zoom re-render, so zooming stays smooth). Reads overlay
 	// and overlayOpacity via untrack() to avoid making them reactive dependencies.
 	$effect(() => {
-		if (!mapReady || !map || !tifBase64) return;
+		if (!mapReady || !map || !searchResult) return;
 
 		const oldOverlay = untrack(() => overlay);
 		if (oldOverlay) {
@@ -176,12 +177,12 @@
 			cropStats = [];
 		}
 
-		const currentTif = tifBase64;
-		// Capture search-time center/radius without registering as reactive deps —
-		// the overlay should stay pinned to the searched location even if the user
-		// drags the marker afterward.
-		const [lat, lon] = untrack(() => center);
-		const r = untrack(() => radius);
+		// The snapshot carries the center/radius the search was issued with, so the
+		// overlay lands on the searched bbox regardless of what the user has moved
+		// since. A new object per search also guarantees this effect re-runs even
+		// when two searches return identical raster bytes. See audit B2/B3.
+		const currentResult = searchResult;
+		const { tifBase64: currentTif, lat, lon, radius: r } = currentResult;
 
 		(async () => {
 			try {
@@ -196,7 +197,7 @@
 				const parseGeoraster = await import('georaster').then((m) => m.default);
 				const georaster = await parseGeoraster(bytes.buffer);
 
-				if (tifBase64 !== currentTif) return;
+				if (searchResult !== currentResult) return;
 
 				// CDL value 0 is background, but georaster.noDataValue is null and
 				// palette[0] is opaque black — so null must be normalized to 0, or
@@ -228,7 +229,7 @@
 				loadingMessage = '';
 			} catch (err) {
 				console.error('GeoTIFF rendering error:', err);
-				if (tifBase64 === currentTif) {
+				if (searchResult === currentResult) {
 					loadingMessage = '';
 					errorMessage = 'Failed to render crop overlay';
 				}
