@@ -288,3 +288,47 @@ related:
 **Reason:** After a waypoint is deleted, array indices shift. Event listeners for save/delete are closed over the ID at creation time, so using array index caused listeners to target wrong waypoints after deletions. A stable counter ID stays correct across deletions.
 
 **Alternatives considered:** Array index as key (breaks after deletion); random UUID (works, but overkill for a session-scoped structure).
+
+---
+
+### [2026-08-23] Custom palette renderer replaces georaster.toCanvas()
+
+**Decision:** Render the GeoTIFF with our own `rasterToRgba` (`src/lib/renderGeoraster.ts`): full-resolution canvas, colors looked up in `georaster.palette`, noData transparent. `MapView.svelte` calls the browser-only `rasterToDataUrl(...)` wrapper instead of `georaster.toCanvas()`.
+
+**Reason:** `georaster-to-canvas` caps output at 100×100 (`Math.min(georaster.height, 100)`) and renders single-band rasters as min/max-scaled grayscale — it never reads `georaster.palette`, confirmed by reading `node_modules/georaster-to-canvas/index.js`. The 2026-05-17 "Hybrid GeoTIFF render" decision assumed `toCanvas()` used the embedded palette and was committed while the CDL API was down, so it was never actually verified. Confirmed live on 2026-08-23: the overlay rendered as a blurry 100×100 grayscale blob.
+
+**Verification (2026-08-23, Playwright, radius 10mi, year 2024, test location 40.553950/-100.076157):** overlay image measured 1114×1128 — matches `georaster.width/height`, not capped at 100×100. Pixel-decoded the resulting data URL and found 30 distinct colors, all real CDL palette entries. Pixel ratios (Grassland/Pasture 59.3%, Corn 24.5%, Soybeans 5.3%, Winter Wheat 2.7%) matched the Area Summary percentages exactly. Screenshot showed crisp center-pivot circles and rectangular fields in correct crop colors over a legible OSM base map at 70% opacity. Opacity slider updates the same `<img>` node instantly (`setOpacity` only, no re-parse). Zero application console errors.
+
+**Runtime finding that makes a coalesce load-bearing:** `georaster.noDataValue` is `null` at runtime and `georaster.palette[0]` is opaque black (`[0,0,0,255]`). Without a `?? 0` fallback, value-0 background pixels render as opaque black specks instead of transparent. Initially only the render call coalesced while `computeCropStats` received the raw `null` — which it treats as "count every pixel" — so value 0 was transparent on the map but still counted in the sidebar as a bogus `Unknown (ID: 0) — 0.2%` row. Resolved in `dbf4bcf` by hoisting a single `const noData = georaster.noDataValue ?? 0` and passing it to both call sites. `computeCropStats` skips excluded pixels before incrementing `total`, so the remaining percentages renormalize correctly; verified live that the bogus row is gone.
+
+**Alternatives considered:** Passing `{width, height}` options to `toCanvas()` (fixes resolution but the output is still grayscale, no palette support); patching `georaster-to-canvas` itself (external dependency churn for what is ~30 lines of replacement code).
+
+**Supersedes:** [2026-05-17] Hybrid GeoTIFF render: georaster.toCanvas() + L.imageOverlay — that entry's premise (toCanvas renders using the embedded palette) was incorrect; left in place per the append-only rule.
+
+---
+
+### [2026-08-23] CROPS colors sourced from the raster palette, not the published CDL legend
+
+**Decision:** Set all 13 `CROPS` filter/legend colors from the `georaster.palette` embedded in a live CDL raster. 12 of the 13 were wrong (only Sorghum `#FF9E0A` matched). Corn is recorded as `#FFD200`, deliberately differing from the `#FFD300` published on the CropScape legend page.
+
+**Reason:** The overlay is painted directly from `palette[value]` (`renderGeoraster.ts`), so the raster's colormap — not the published legend — is what appears on screen. Legend swatches must match the pixels beside them. The corn discrepancy is real, not a rounding artifact: the raw TIFF `ColorMap` green channel is `53970` = `210 x 257` exactly, and every entry is an exact multiple of 257, so the 16-to-8-bit conversion is lossless. The raster says 210.
+
+**Also settled:** the `Other (ID: n)` -> `Unknown (ID: n)` label change in `cropStats.ts` was deliberate, made in `065cdd1` alongside the 130-entry `CDL_LABELS` table; `Unknown` now means "outside the CDL domain entirely," a narrower case than the old `Other`. The 4 long-failing tests were stale spec expectations, not implementation bugs — the specs were corrected, not the code.
+
+**Alternatives considered:** Trusting the published CropScape legend hexes (would leave swatches visibly off by one from the overlay); deriving swatches from `georaster.palette` at runtime (structurally correct and immune to drift, but touches `MapView.svelte` and only helps once a raster is loaded — left as a follow-up).
+
+**Caveat:** Ground truth came from one raster (Eustis NE, 2024, 10mi). The CDL colormap is believed constant across tiles and years but that was not verified.
+
+---
+
+### [2026-08-23] Legend and filter swatches derive from the live raster palette
+
+**Decision:** `resolveCropColors(palette)` (`src/lib/crops.ts`) resolves each of the 13 `CROPS` entries to the color in the live `georaster.palette`, falling back per-crop to the hardcoded hex when the palette is absent, lacks that CDL id, or has a fully transparent entry. The palette is lifted out of `MapView.svelte` via a bindable `cropPalette` prop — the same path `cropStats` already travelled — and `CropFilter`/`Legend` take a `colors` prop defaulting to `resolveCropColors()`.
+
+**Reason:** The overlay paints straight from `palette[value]`, so hardcoded swatch hexes are a second source of truth that can silently drift from the pixels beside them. That drift had already happened: 12 of 13 colors were wrong before `7778cb6`. Reading swatches from the same array the renderer uses makes a recurrence structurally impossible rather than merely corrected.
+
+**Why the hardcoded colors stay:** the sidebar and legend render on first paint, before any search and with no raster in existence. They must look right then, so the hex values remain as fallback defaults rather than being deleted.
+
+**Alternatives considered:** Passing the raw 256-entry palette down to each component (components only need "what color is this crop", and the fallback logic would end up duplicated in markup); a store or context (the codebase already had a working prop-drilling pattern for `cropStats` — no reason to introduce a second mechanism); deleting the hardcoded hexes entirely (breaks pre-search first paint).
+
+**Side effect worth knowing:** `computeCropStats` now shares the `paletteColor` conversion instead of its own inline one, which means it newly rejects fully transparent palette entries. No real CDL class is affected (alphas are 255), and rejecting them is correct for a swatch.

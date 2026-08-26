@@ -49,9 +49,9 @@ All features from the initial build plan are complete, plus post-review improvem
 
 ---
 
-## Implemented (PR #2 — feature/geotiff-overlay)
+## Implemented (PR #2 — feature/geotiff-overlay, verified working, still unmerged)
 
-- [x] **GeoTIFF overlay** — Server downloads raw `.tif`, base64-encodes via SSE. Client parses with `georaster`, renders via `toCanvas()` + `L.imageOverlay`. Smooth zoom (no per-tile re-render). `georaster-layer-for-leaflet` abandoned due to per-zoom lag and CDL projection code 32767 issues.
+- [x] **GeoTIFF overlay** — Server downloads raw `.tif`, base64-encodes via SSE. Client parses with `georaster`, renders via the custom `rasterToDataUrl()` (`src/lib/renderGeoraster.ts`) + `L.imageOverlay`. Full native resolution, colors from the embedded `georaster.palette`. Smooth zoom (no per-tile re-render). `georaster-layer-for-leaflet` was abandoned due to per-zoom lag and CDL projection code 32767 issues; `georaster.toCanvas()` was abandoned after that because it caps output at 100×100 and renders grayscale only, ignoring the palette. Live-verified 2026-08-23 (Playwright): 1114×1128 output, 30 correct palette colors, pixel ratios matching Area Summary percentages. PR #2 is open and unmerged pending a human merge decision.
 - [x] **CDL overlay opacity control** — OpacitySlider component, localStorage persisted; `setOpacity()` on ImageOverlay without re-parsing.
 - [x] **Area Summary / crop statistics** — Collapsible section below Search button; `computeCropStats` uses `georaster.values[0]` for pixel counts and `georaster.palette` for exact CDL colors. `CDL_LABELS` covers all 130 CDL values for labeling.
 - [x] **Complete CDL value lookup** — `CDL_LABELS` record in `crops.ts` with all 130 CDL IDs and names; no more `Other (ID: X)` in stats.
@@ -68,7 +68,7 @@ High-value features deferred from initial build:
 
 - [ ] **Water source data** — stock tanks, ponds, watering holes (National Hydrography Dataset or similar). High value for dove hunting.
 - [ ] **Habitat highlighting** — auto-identify grain-adjacent-to-cover patterns. Needs accuracy validation.
-- [ ] **Image Overlay Placement Accuracy** — The CDL image sometimes seems to not overlay perfectly, this can be verified after the overlay opacity is modifiable.
+- [ ] **Image Overlay Placement Accuracy (Albers→Mercator skew)** — The overlay is an EPSG:5070 (Albers) raster painted onto a Mercator (`L.imageOverlay`) map, so there is minor placement skew. Per-pixel Albers→Mercator warping is not implemented. Live-verified 2026-08-23: skew is present but placement is acceptable in practice at the tested radius/location. Not blocking, but not fixed.
 - [ ] **Saved locations / user accounts** — bookmarking + light auth (requires database)
 - [ ] **Custom bounding box** — let user draw a box on the map instead of radius-from-point
 - [ ] **Share link** — URL encodes location/radius/year so a view can be shared
@@ -104,7 +104,9 @@ High-value features deferred from initial build:
 ## Blockers / Known Issues
 
 - **CDL API intermittently down** — Requests hang at "Fetching crop data..." with no response. Not a code bug; upstream USDA NASS service issue. No workaround.
-- **CROPS filter colors unverified** — Hex values are approximate CDL colors from training data. Plan to verify against `georaster.palette[id]` for each of the 13 filter crops once API is stable.
+- ~~**CROPS filter colors unverified**~~ — Resolved 2026-08-23 (`7778cb6`). All 13 filter colors were checked against the real `georaster.palette` from a live CDL raster; **12 of 13 were wrong** (only Sorghum `#FF9E0A` was already correct). Barley was brown instead of magenta and Oats periwinkle instead of purple — the corrected values now agree with the semantic legend in `CLAUDE.md`. The 4 stale vitest failures are fixed; suite is 42/42.
+  - Corn is `#FFD200` (RGB 255,210,0), **not** the `#FFD300` published on the CropScape legend page. Verified against the raw TIFF `ColorMap` tag: the green channel is `53970` = `210 × 257` exactly, so the 16→8-bit conversion is lossless and the raster genuinely says 210. The overlay renders from the raster, so `#FFD200` is what matches on screen.
+- ~~**`Unknown (ID: 0)` bogus row in Area Summary**~~ — Fixed 2026-08-23 (`dbf4bcf`). `georaster.noDataValue` is `null` at runtime while `palette[0]` is opaque black, so the `?? 0` coalesce is required or value-0 pixels paint black. The renderer coalesced but `computeCropStats` got the raw `null` and counted those pixels. Both call sites now share one hoisted `const noData = georaster.noDataValue ?? 0`; verified live that the spurious row is gone and percentages still renormalize.
 
 ---
 

@@ -21,7 +21,7 @@ related:
 
 ## Current State
 
-- **Phase**: PR #1 merged; PR #2 (`feature/geotiff-overlay`) fully working, ready to merge
+- **Phase**: PR #1 merged; PR #2 (`feature/geotiff-overlay`) verified working end-to-end via live Playwright testing on 2026-08-23, still OPEN and unmerged pending a human merge decision
 - **Branch**: `feature/geotiff-overlay`
 - **Worktree**: `.worktrees/feature-geotiff-overlay`
 - **GitHub**: https://github.com/wpknox/field-finder
@@ -54,11 +54,13 @@ Core v1 features (on `main`):
 - localStorage persistence for all user state
 - Styled sidebar header (green-800) with outlined Hide/Expand buttons
 
-GeoTIFF overlay branch (PR #2 — fully working):
+GeoTIFF overlay branch (PR #2 — verified working, unmerged):
 
 - Server skips `GetCDLImage`; downloads raw `.tif` binary, base64-encodes, sends via SSE `done` event
-- **Hybrid render**: `georaster` parses the GeoTIFF → `georaster.toCanvas()` renders once using embedded CDL palette → `L.imageOverlay` places it with lat/lon bounds (smooth zoom, no per-tile re-render)
-- `georaster-layer-for-leaflet` was abandoned — caused per-zoom lag and reprojection issues with CDL's projection code 32767
+- **Custom palette renderer**: `georaster` parses the GeoTIFF → `src/lib/renderGeoraster.ts`'s `rasterToDataUrl()` paints the raster to a canvas at native resolution, mapping each pixel through the embedded `georaster.palette` (noData transparent) → `L.imageOverlay` places the resulting PNG data URL with lat/lon bounds (smooth zoom, no per-tile re-render). `georaster.toCanvas()` was abandoned (see below).
+- `georaster-layer-for-leaflet` was abandoned earlier — caused per-zoom lag and reprojection issues with CDL's projection code 32767
+- `georaster.toCanvas()` was abandoned after that — confirmed live on 2026-08-23 that it caps output at 100×100 and renders single-band rasters as min/max-scaled grayscale, never reading `georaster.palette`. It never actually worked; the prior "fully working" status in this file was written while the CDL API was down and unverified.
+- **Live verification (2026-08-23, Playwright, radius 10mi, year 2024, test location 40.553950/-100.076157)**: overlay image is 1114×1128 (native `georaster.width/height`, not 100×100); pixel-decoded the data URL and found 30 distinct colors, all real CDL palette entries; pixel ratios (Grassland/Pasture 59.3%, Corn 24.5%, Soybeans 5.3%, Winter Wheat 2.7%) match the Area Summary percentages exactly; screenshot shows crisp center-pivot circles and rectangular fields in correct crop colors; opacity slider updates the same `<img>` instantly with no re-parse; zero application console errors.
 - Two-effect pattern in MapView: one tracks `tifBase64` (full re-parse), one tracks `overlayOpacity` (instant `setOpacity`, no re-parse)
 - `untrack()` used to read `overlay` (for cleanup), `overlayOpacity` (initial value), and `center`/`radius` (search-time snapshot) without making them reactive dependencies
 - `handedOffToMap` flag in `handleSearch` — prevents `finally` from clearing `loadingMessage` when MapView is still rendering
@@ -90,8 +92,14 @@ GeoTIFF overlay branch (PR #2 — fully working):
 
 ## Active Work / What We're Doing Now
 
-- PR #2 (`feature/geotiff-overlay`) is working end-to-end — ready to merge when CDL API comes back up for final verification
-- CROPS filter colors are approximate CDL values; plan to verify exact hex against `georaster.palette` when API is available
+- PR #2 (`feature/geotiff-overlay`) is verified working end-to-end (live Playwright test, 2026-08-23) — still open, awaiting a human decision to merge
+- **Known limitation (still true)**: the overlay paints an EPSG:5070 (Albers) raster onto a Mercator map via `imageOverlay`, causing minor placement skew. Per-pixel Albers→Mercator warping is unimplemented. Verification showed placement is acceptable in practice, but this is not "fixed."
+- **Resolved 2026-08-23 (commit `dbf4bcf`)**: at runtime `georaster.noDataValue` is `null` and `palette[0]` is opaque black (`[0,0,0,255]`), so the `?? 0` coalesce is load-bearing — without it value-0 background pixels paint as opaque black specks. The renderer coalesced but `computeCropStats` received the raw `null` and counted those pixels, producing a bogus `Unknown (ID: 0) — 0.2%` row in Area Summary. Fixed by hoisting one `const noData = georaster.noDataValue ?? 0` and passing it to both call sites. Verified live: the bogus row is gone and percentages still renormalize correctly (`computeCropStats` skips before incrementing `total`).
+- **Resolved 2026-08-23 (commit `7778cb6`)**: all 13 CROPS filter colors verified against the real `georaster.palette` from a live CDL raster — **12 of 13 were wrong** (only Sorghum was correct). Barley was brown rather than magenta, Oats periwinkle rather than purple; corrected values now match the semantic legend in `CLAUDE.md`. Corn is `#FFD200`, not the `#FFD300` CropScape publishes — confirmed from the raw TIFF `ColorMap` tag (green channel `53970` = `210 × 257`, a lossless 16→8-bit conversion), and the overlay renders from the raster. The 4 long-standing vitest failures were stale SPEC expectations, not implementation bugs; suite is now 42/42.
+- **Done 2026-08-23 (commit `9cef53f`)**: legend and crop-filter swatches now derive from the live `georaster.palette`, so they can no longer drift from the overlay. `resolveCropColors(palette)` in `crops.ts` returns a `Record<CropKey, string>`, falling back per-crop to the hardcoded `CROPS` hex when the palette is absent, missing that id, or has a transparent entry. The palette rides the same MapView → `+page.svelte` → component path that `cropStats` already used (`bind:cropPalette` beside `bind:cropStats`); `CropFilter`/`Legend` default the prop to `resolveCropColors()` so first paint before any search is still correct. `computeCropStats` reuses the same `paletteColor` conversion instead of its own inline one. Suite 51/51.
+  - Hardcoded `CROPS` colors are retained deliberately as the pre-search fallback — do not delete them.
+  - `cropPalette` is intentionally NOT cleared when an overlay is removed (unlike `cropStats`), since the CDL colormap is constant across bboxes/years and clearing would only flicker back to fallbacks mid-search.
+  - Note the palette was verified against one raster (Eustis NE, 2024). Constancy across tiles/years is believed, not proven — but drift no longer matters visually now that swatches read from the raster.
 
 ## People / Roles
 
