@@ -332,3 +332,31 @@ related:
 **Alternatives considered:** Passing the raw 256-entry palette down to each component (components only need "what color is this crop", and the fallback logic would end up duplicated in markup); a store or context (the codebase already had a working prop-drilling pattern for `cropStats` — no reason to introduce a second mechanism); deleting the hardcoded hexes entirely (breaks pre-search first paint).
 
 **Side effect worth knowing:** `computeCropStats` now shares the `paletteColor` conversion instead of its own inline one, which means it newly rejects fully transparent palette entries. No real CDL class is affected (alphas are 255), and rejecting them is correct for a swatch.
+
+---
+
+### [2026-08-26] Search results travel as a fresh `SearchResult` object, not a bare base64 string
+
+**Decision:** `handleSearch` snapshots `{lat, lon, radius}` _before_ issuing the request and, on the SSE `done` event, hands MapView a brand-new `SearchResult` object (`src/lib/searchResult.ts`) containing those values plus `tifBase64`. MapView's overlay `$effect` places the raster from that snapshot and guards staleness on **object identity** rather than on the base64 string.
+
+**Reason:** Two bugs shared one root cause. The effect previously read `center`/`radius` with `untrack()` _inside itself_, but the effect runs when the raster arrives — after a multi-second fetch — so it captured render-time values, and dragging the marker mid-fetch drew the raster at the wrong place and size (audit B2). Separately, `tifBase64 = event.tifBase64` is a same-value primitive write when a repeated identical search returns identical bytes; Svelte 5 skips notification, the effect never re-runs, and nothing clears `loadingMessage` — soft-locking the Search button (audit B3). A fresh object identity per search fixes B3 structurally, and feeding the request body and the result object from the same three locals makes B2 impossible by construction rather than by guarding against it: the bbox that was searched and the bbox that is drawn cannot drift apart.
+
+**Why identity guards are safe here:** the guards read `searchResult` inside an async closure after `await` points, so `active_reaction` is null and they register no dependency — no self-retriggering loop. Destructured props compile to live getters, so they still observe the current value, which is exactly what a staleness check needs.
+
+**Consequence to respect:** MapView now has two sources of position that are _not_ interchangeable — live `center`/`radius` (marker, bbox preview) and the frozen snapshot (overlay). This is documented at the prop declarations and the destructured values are named `searchLat`/`searchLon`/`searchRadius` so a stray use of the live values reads as obviously wrong.
+
+**Alternatives considered:** Keeping the string prop and adding a separate incrementing `searchVersion` counter (works, but leaves the placement values ambient and re-introduces two things that must be kept in sync); snapshotting into module-level state (invisible to the reactivity graph, and untestable).
+
+**Known gap:** `SearchResult` deliberately omits `year` and `crops`. Year comparison will need `year` — decide then rather than rediscovering it (audit F2).
+
+---
+
+### [2026-08-26] CDL fetches carry an `AbortSignal.timeout`; the year range is one constant
+
+**Decision:** All three server-side CDL requests take `AbortSignal.timeout()` — `CDL_TIMEOUT_MS = 60_000` for the two metadata calls, `2×` that for the raster download, since the raster can be tens of MB. A timeout is rethrown as `CdlTimeoutError` and reported to the client as "USDA CDL service is not responding — try again later", distinct from the generic failure message. Separately, the CDL year range moved from three hardcoded sites into `src/lib/constants.ts` (`CDL_MIN_YEAR`, `CDL_MAX_YEAR`, `CDL_YEARS`).
+
+**Reason:** NASS does not error when it is unhealthy — it _hangs_. Measured on 2026-08-26: `status=000 size=0 time=40.001s` while the host itself answered (CropScape returned 302). With no signal attached, the SSE stream stayed open and the client spun forever with no error, which turned the long-standing "CDL API intermittently down" blocker into an indefinite spinner. The distinct message matters because "try again later" is actionable and "something failed" is not. `fetchCdlData` takes an optional fourth `timeoutMs` parameter purely so tests can drive a 50ms timeout instead of waiting a minute.
+
+**On the year range:** it was pinned at 1997–2024 in the dropdown, the default state, and the server validator, and it goes stale every winter when NASS publishes the prior year. `CDL_MAX_YEAR` stays **2024** for now — whether the 2025 layer exists could not be determined because every probe hung. The point of the refactor is that confirming it later is a one-line change.
+
+**Alternatives considered:** A wrapper with retry/backoff (retrying a service that hangs for 40s multiplies the wait; the user is sitting in front of a spinner — fail fast and let them retry); a single global timeout across the whole chain (obscures which step stalled, and the raster download legitimately needs a larger budget than a metadata call); deriving `CDL_MAX_YEAR` from the current date (guesses at NASS's publication schedule and would silently offer a year that does not exist).

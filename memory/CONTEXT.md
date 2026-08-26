@@ -21,9 +21,9 @@ related:
 
 ## Current State
 
-- **Phase**: PR #1 and PR #2 both merged. All GeoTIFF overlay work is now on `main` (merge commit `58d5a4c`, 2026-08-26). No feature branch or worktree is active.
-- **Branch**: `main`
-- **Worktree**: none
+- **Phase**: PR #1 and PR #2 merged. **PR #3 open** (https://github.com/wpknox/field-finder/pull/3) — audit tranche 1 correctness fixes, awaiting review/merge.
+- **Branch**: `fix/audit-tranche-1` (8 commits ahead of `main`, pushed)
+- **Worktree**: none — tranche 1 was executed in the primary directory, not a worktree, because the plan needed a dev server plus live browser verification
 - **GitHub**: https://github.com/wpknox/field-finder
 
 ## What's Built (all on `main`)
@@ -36,7 +36,7 @@ Core v1 features (on `main`):
 - Interactive Leaflet map with click-to-set-location
 - Map pans to follow marker when location is set via search (not on drag/click)
 - Radius slider (1–50 mi, amber warning above 15)
-- Year dropdown (1997–2024)
+- Year dropdown (1997–2024) — range lives in `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`/`CDL_YEARS`)
 - Crop filter checkboxes with color swatches (localStorage persisted) + Select All / Clear All
 - Hint when no crops selected ("all crop data will be shown")
 - Explicit Search button (no auto-search)
@@ -61,8 +61,8 @@ GeoTIFF overlay (PR #2 — merged to `main` 2026-08-26):
 - `georaster-layer-for-leaflet` was abandoned earlier — caused per-zoom lag and reprojection issues with CDL's projection code 32767
 - `georaster.toCanvas()` was abandoned after that — confirmed live on 2026-08-23 that it caps output at 100×100 and renders single-band rasters as min/max-scaled grayscale, never reading `georaster.palette`. It never actually worked; the prior "fully working" status in this file was written while the CDL API was down and unverified.
 - **Live verification (2026-08-23, Playwright, radius 10mi, year 2024, test location 40.553950/-100.076157)**: overlay image is 1114×1128 (native `georaster.width/height`, not 100×100); pixel-decoded the data URL and found 30 distinct colors, all real CDL palette entries; pixel ratios (Grassland/Pasture 59.3%, Corn 24.5%, Soybeans 5.3%, Winter Wheat 2.7%) match the Area Summary percentages exactly; screenshot shows crisp center-pivot circles and rectangular fields in correct crop colors; opacity slider updates the same `<img>` instantly with no re-parse; zero application console errors.
-- Two-effect pattern in MapView: one tracks `tifBase64` (full re-parse), one tracks `overlayOpacity` (instant `setOpacity`, no re-parse)
-- `untrack()` used to read `overlay` (for cleanup), `overlayOpacity` (initial value), and `center`/`radius` (search-time snapshot) without making them reactive dependencies
+- Two-effect pattern in MapView: one tracks `searchResult` (full re-parse), one tracks `overlayOpacity` (instant `setOpacity`, no re-parse)
+- `untrack()` used to read `overlay` (for cleanup) and `overlayOpacity` (initial value) without making them reactive dependencies. It is **no longer** used for `center`/`radius` in the overlay effect — that was audit B2 (it captured render-time, not search-time, values); the snapshot now arrives in the `searchResult` prop.
 - `handedOffToMap` flag in `handleSearch` — prevents `finally` from clearing `loadingMessage` when MapView is still rendering
 - OpacitySlider component; opacity persisted to localStorage
 - AreaSummary component — collapsible, below Search button, only shown when stats present
@@ -87,13 +87,19 @@ GeoTIFF overlay (PR #2 — merged to `main` 2026-08-26):
 - `mapReady = $state(false)` sentinel bridges async Leaflet init with `$effect` reactivity
 - `waypointMarkers` and `waypointData` are plain `Map` (not `SvelteMap`) — intentional, UI reads from `waypoints` `$state` array
 - Marker drag: `drag` event directly calls `bboxRect.setBounds` (bypasses Svelte state); `dragend` syncs `center`
-- Map pan: `panVersion` counter prop on MapView, incremented only in `handleLocationSelect`
-- `overlay` in MapView is `L.ImageOverlay` (not GridLayer) — placed with lat/lon bounds captured at search time via `untrack()`
+- Map pan: `panVersion` counter prop on MapView, incremented only in `handleLocationSelect`. The pan `$effect` reads `center` via `untrack()` so `panVersion` is its **only** reactive dependency — a tracked read was audit B1 (map re-panned on every click and drag).
+- `overlay` in MapView is `L.ImageOverlay` (not GridLayer) — placed with lat/lon bounds from `searchResult.{lat,lon,radius}`, snapshotted in `handleSearch` **before** the request is sent
+- **`searchResult` snapshot pattern** (`src/lib/searchResult.ts`): every completed search yields a _new_ `{tifBase64, lat, lon, radius}` object. MapView has two non-interchangeable sources of position — live `center`/`radius` drive the marker and bbox preview; the frozen snapshot drives the overlay. Never mix them.
+- **CDL fetch timeouts**: `CDL_TIMEOUT_MS = 60_000` in `src/lib/server/cdl.ts`; metadata calls get 60s, the raster download gets 2×. A timeout throws `CdlTimeoutError` and surfaces as "USDA CDL service is not responding — try again later" rather than an endless spinner.
 
 ## Active Work / What We're Doing Now
 
-- **Nothing in flight.** PR #2 merged 2026-08-26 (`58d5a4c`); `feature/geotiff-overlay` and its worktree were deleted. Suite is 51/51, `svelte-check` clean. Next candidates are the near-term follow-ups in `planning/features.md` (year comparison / year opacity blending).
-- **Codebase audit completed 2026-08-26** — see `planning/audit-2026-08-26.md` for suspected bugs (pan-on-click regression, overlay placed at render-time center, stuck spinner on repeat search, stale 2024 year cap, no CDL timeouts), cleanup items, and a session-sized execution order. Work from that doc before starting new features.
+- **PR #3 open — audit tranche 1.** Fixes C1, B1, B2, B3, B4, B5 from `planning/audit-2026-08-26.md`, executed per `planning/plans/2026-08-26-audit-tranche-1.md`. Suite is **55/55**, `svelte-check` 0 errors on 665 files, lint passes, and `npm run build` succeeds (first build ever run on this codebase).
+- **⚠️ Two things need a human once the CDL service recovers:**
+  1. **B2 and B3 were never observed working.** Both need a successful CDL round-trip; they typecheck and passed spec + quality review but are unverified live. Repro: search 40.553950/-100.076157 at 10 mi, drag the marker mid-fetch (overlay must stay on the _original_ bbox), then run the identical search twice (the second must clear the loading overlay).
+  2. **`CDL_MAX_YEAR` is still 2024.** Whether the 2025 layer exists is unconfirmed — every probe hung. Bumping it is now one line in `src/lib/constants.ts`.
+- **CDL service is hanging as of 2026-08-26** — not merely slow. A direct probe returns `status=000 size=0 time=40.001s` while the host answers (CropScape returns 302). This is the documented "CDL API intermittently down" blocker, and it is exactly what B5's timeouts now handle gracefully.
+- **Audit is the work queue.** `planning/audit-2026-08-26.md` — tranche 1 items are marked `[FIXED …]` inline. Remaining: B6, B7, C2–C7, D1–D5, plus a new **section F** of findings raised by the tranche 1 code reviews (orphaned-overlay race, `SearchResult` missing year/crops, unvalidated SSE payload, split `loadingMessage` ownership). Per the audit, do **not** start year comparison before F1/F2 are considered — that feature doubles the overlay plumbing.
 - **Known limitation (still true)**: the overlay paints an EPSG:5070 (Albers) raster onto a Mercator map via `imageOverlay`, causing minor placement skew. Per-pixel Albers→Mercator warping is unimplemented. Verification showed placement is acceptable in practice, but this is not "fixed."
 - **Resolved 2026-08-23 (commit `dbf4bcf`)**: at runtime `georaster.noDataValue` is `null` and `palette[0]` is opaque black (`[0,0,0,255]`), so the `?? 0` coalesce is load-bearing — without it value-0 background pixels paint as opaque black specks. The renderer coalesced but `computeCropStats` received the raw `null` and counted those pixels, producing a bogus `Unknown (ID: 0) — 0.2%` row in Area Summary. Fixed by hoisting one `const noData = georaster.noDataValue ?? 0` and passing it to both call sites. Verified live: the bogus row is gone and percentages still renormalize correctly (`computeCropStats` skips before incrementing `total`).
 - **Resolved 2026-08-23 (commit `7778cb6`)**: all 13 CROPS filter colors verified against the real `georaster.palette` from a live CDL raster — **12 of 13 were wrong** (only Sorghum was correct). Barley was brown rather than magenta, Oats periwinkle rather than purple; corrected values now match the semantic legend in `CLAUDE.md`. Corn is `#FFD200`, not the `#FFD300` CropScape publishes — confirmed from the raw TIFF `ColorMap` tag (green channel `53970` = `210 × 257`, a lossless 16→8-bit conversion), and the overlay renders from the raster. The 4 long-standing vitest failures were stale SPEC expectations, not implementation bugs; suite is now 42/42.
