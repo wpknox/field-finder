@@ -68,7 +68,7 @@ export function buildExtractUrl(rasterUrl: string, cropValues: number[]): string
  * GetCDLImage returns <returnURLArray> (contains the first/only PNG URL).
  */
 export function parseReturnUrl(xml: string): string {
-	const match = xml.match(/<returnURL(?:Array)?>(.*?)<\/returnURL(?:Array)?>/);
+	const match = new RegExp(/<returnURL(?:Array)?>(.*?)<\/returnURL(?:Array)?>/).exec(xml);
 	if (!match) {
 		throw new Error(`CDL API response missing <returnURL>: ${xml.slice(0, 200)}`);
 	}
