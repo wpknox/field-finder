@@ -360,3 +360,17 @@ related:
 **On the year range:** it was pinned at 1997–2024 in the dropdown, the default state, and the server validator, and it goes stale every winter when NASS publishes the prior year. `CDL_MAX_YEAR` stays **2024** for now — whether the 2025 layer exists could not be determined because every probe hung. The point of the refactor is that confirming it later is a one-line change.
 
 **Alternatives considered:** A wrapper with retry/backoff (retrying a service that hangs for 40s multiplies the wait; the user is sitting in front of a spinner — fail fast and let them retry); a single global timeout across the whole chain (obscures which step stalled, and the raster download legitimately needs a larger budget than a metadata call); deriving `CDL_MAX_YEAR` from the current date (guesses at NASS's publication schedule and would silently offer a year that does not exist).
+
+---
+
+### [2026-08-26] `isTimeoutError` inspects `err.cause`, not just `err.name`
+
+**Decision:** The CDL timeout classifier matches three things: a top-level DOMException named `TimeoutError`/`AbortError`, the same names on `err.cause`, and the undici codes `UND_ERR_CONNECT_TIMEOUT` / `UND_ERR_HEADERS_TIMEOUT` / `UND_ERR_BODY_TIMEOUT` on `err.cause`. It deliberately does **not** match `ECONNREFUSED` / `ENOTFOUND`.
+
+**Reason:** The original B5 implementation only checked `err.name`, which silently covered the _narrower_ half of the problem. Node's `fetch` reports transport failures as `TypeError: fetch failed` and hangs the real reason off `.cause`, so a connection-level timeout never matched and fell through to the generic "Failed to fetch crop data from CDL API" — the exact vagueness B5 existed to remove. Worse, **undici's connect timeout is 10s, well under `CDL_TIMEOUT_MS` (60s)**, so when NASS is unreachable rather than merely slow, our `AbortSignal` never fires and the unmatched shape is the _only_ one that occurs. B5 therefore worked solely in the case where NASS accepts the connection and then stalls.
+
+Error shape verified empirically on Node 24 by forcing a real connect timeout against a blackhole address: `err.name` `TypeError`, `err.cause.name` `ConnectTimeoutError`, `err.cause.code` `UND_ERR_CONNECT_TIMEOUT`. Found from production logs showing both shapes side by side — one `CdlTimeoutError`, two bare `TypeError`s.
+
+**Why unreachable-host codes are excluded:** "not responding" is an honest description of a timeout and a misleading one for a refused connection or a DNS failure, which may well be the _user's_ network rather than NASS. Those keep the generic message.
+
+**Alternatives considered:** Recursively walking the whole `cause` chain (undici nests exactly one level; unbounded walking invites false positives from unrelated wrapped errors); matching on `err.message === 'fetch failed'` (brittle string matching against a Node internal); lowering `CDL_TIMEOUT_MS` below 10s so our signal always wins (would abort legitimately slow-but-working CDL requests, which routinely take seconds).

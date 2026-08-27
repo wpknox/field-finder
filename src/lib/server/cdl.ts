@@ -13,9 +13,44 @@ export class CdlTimeoutError extends Error {
 	}
 }
 
-/** True for the DOMException fetch raises when an AbortSignal.timeout() fires. */
+/** Names DOMException uses when an AbortSignal fires. */
+const ABORT_NAMES = new Set(['TimeoutError', 'AbortError']);
+
+/**
+ * Undici error codes meaning "the upstream never answered in time". Node's fetch
+ * reports transport failures as `TypeError: fetch failed` and hangs the real reason
+ * off `.cause`, so a top-level name check cannot see these.
+ */
+const UPSTREAM_TIMEOUT_CODES = new Set([
+	'UND_ERR_CONNECT_TIMEOUT',
+	'UND_ERR_HEADERS_TIMEOUT',
+	'UND_ERR_BODY_TIMEOUT'
+]);
+
+/**
+ * True when a fetch rejection means "CDL did not respond in time".
+ *
+ * Two shapes reach us, and both must be recognised:
+ *  - our own `AbortSignal.timeout()` firing → a DOMException named `TimeoutError`
+ *  - undici giving up first → `TypeError: fetch failed` with a `ConnectTimeoutError`
+ *    on `.cause`. Undici's connect timeout is 10s, well under `CDL_TIMEOUT_MS`, so
+ *    when NASS is unreachable (rather than merely slow) this is the shape that
+ *    actually occurs — the AbortSignal never gets the chance to fire.
+ *
+ * Deliberately does NOT match unreachable-host failures (`ECONNREFUSED`,
+ * `ENOTFOUND`): those mean something different from "not responding" and keep the
+ * generic error message.
+ */
 export function isTimeoutError(err: unknown): boolean {
-	return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+	if (!(err instanceof Error)) return false;
+	if (ABORT_NAMES.has(err.name)) return true;
+
+	const cause: unknown = (err as { cause?: unknown }).cause;
+	if (!(cause instanceof Error)) return false;
+	if (ABORT_NAMES.has(cause.name)) return true;
+
+	const code = (cause as { code?: unknown }).code;
+	return typeof code === 'string' && UPSTREAM_TIMEOUT_CODES.has(code);
 }
 
 export function buildCdlFileUrl(year: number, bbox: AlbersBbox): string {
