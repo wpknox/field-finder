@@ -71,8 +71,9 @@ All features from the initial build plan are complete, plus post-review improvem
 
 High-value features deferred from initial build:
 
-- [ ] **Year comparison** — toggle between two years' overlays
+- [ ] **Year comparison** — toggle between two years' overlays (blocked: do audit plan 2a, overlay hardening, first)
 - [ ] **Year opacity blending** — independent opacity per year for visual comparison
+- [ ] **UI/UX redesign** — deliberate visual + interaction pass using the `frontend-design` plugin (installed 2026-08-26) and `theme-factory`. Tranche 3 in `planning/audit-2026-08-26.md`; start with `brainstorming`. Must preserve the settled UX decisions (no auto-search, inform-don't-restrict, localStorage persistence, swatches from the live raster palette). Likely absorbs D2–D5.
 
 ---
 
