@@ -1,7 +1,14 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { computeSearchBbox } from '$lib/server/coordinates';
-import { fetchCdlData, type CdlProgressStep } from '$lib/server/cdl';
+import {
+	fetchCdlData,
+	CdlTimeoutError,
+	CDL_TIMEOUT_MS,
+	isTimeoutError,
+	type CdlProgressStep
+} from '$lib/server/cdl';
+import { CDL_MIN_YEAR, CDL_MAX_YEAR } from '$lib/constants';
 
 const PROGRESS_MESSAGES: Record<CdlProgressStep, string> = {
 	fetching: 'Fetching crop data...',
@@ -28,8 +35,8 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 	if (typeof radius !== 'number' || radius < 1 || radius > 50) {
 		error(400, 'radius must be between 1 and 50');
 	}
-	if (typeof year !== 'number' || year < 1997 || year > 2024) {
-		error(400, 'year must be between 1997 and 2024');
+	if (typeof year !== 'number' || year < CDL_MIN_YEAR || year > CDL_MAX_YEAR) {
+		error(400, `year must be between ${CDL_MIN_YEAR} and ${CDL_MAX_YEAR}`);
 	}
 	if (!Array.isArray(crops)) {
 		error(400, 'crops must be an array of CDL value IDs');
@@ -48,10 +55,8 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			};
 
 			try {
-				const rasterUrl = await fetchCdlData(
-					{ year, albers, crops },
-					fetch,
-					(step) => send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
+				const rasterUrl = await fetchCdlData({ year, albers, crops }, fetch, (step) =>
+					send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
 				);
 
 				if (typeof rasterUrl !== 'string' || rasterUrl.trim() === '') {
@@ -60,7 +65,21 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 				}
 
 				send({ type: 'progress', message: 'Downloading crop data...' });
-				const tifResp = await fetch(rasterUrl);
+				let tifResp: Response;
+				try {
+					// The raster itself can be tens of MB, so it gets a longer budget
+					// than the two metadata calls.
+					tifResp = await fetch(rasterUrl, { signal: AbortSignal.timeout(CDL_TIMEOUT_MS * 2) });
+				} catch (err) {
+					if (isTimeoutError(err)) {
+						send({
+							type: 'error',
+							message: 'USDA CDL service is not responding — try again later'
+						});
+						return;
+					}
+					throw err;
+				}
 				if (!tifResp.ok) {
 					send({
 						type: 'error',
@@ -75,7 +94,13 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 				send({ type: 'done', tifBase64 });
 			} catch (err) {
 				console.error('CDL API error:', err);
-				send({ type: 'error', message: 'Failed to fetch crop data from CDL API' });
+				send({
+					type: 'error',
+					message:
+						err instanceof CdlTimeoutError
+							? 'USDA CDL service is not responding — try again later'
+							: 'Failed to fetch crop data from CDL API'
+				});
 			} finally {
 				controller.close();
 			}

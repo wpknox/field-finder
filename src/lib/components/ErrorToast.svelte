@@ -26,8 +26,8 @@
 			<button
 				onclick={ondismiss}
 				class="mt-0.5 shrink-0 text-base leading-none text-red-500 hover:text-red-800"
-				aria-label="Dismiss"
-			>✕</button>
+				aria-label="Dismiss">✕</button
+			>
 		</div>
 	</div>
 {/if}

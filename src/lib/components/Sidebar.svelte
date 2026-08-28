@@ -13,11 +13,7 @@
 	style="width: {collapsed ? '2.5rem' : '20rem'}"
 >
 	<!-- Full sidebar content — invisible when collapsed so clipping looks clean -->
-	<aside
-		class="flex h-full w-80 flex-col"
-		class:invisible={collapsed}
-		aria-hidden={collapsed}
-	>
+	<aside class="flex h-full w-80 flex-col" class:invisible={collapsed} aria-hidden={collapsed}>
 		<div class="flex items-center justify-between bg-green-800 px-4 py-3">
 			<h1 class="text-lg font-bold tracking-wide text-white">Field Finder</h1>
 			<button

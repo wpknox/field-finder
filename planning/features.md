@@ -15,13 +15,14 @@ related:
 All features from the initial build plan are complete, plus post-review improvements.
 
 **Core v1:**
+
 - [x] Collapsible left sidebar with animated slide (width transition + overflow-hidden)
 - [x] Address search bar with geocoding (Nominatim, US-only) + lat/lon coordinate input
 - [x] Lat/lon coordinate display below search bar (updates on map click or address select)
 - [x] Search bar clears when user clicks on the map
 - [x] Interactive Leaflet map with click-to-set-location
 - [x] Radius slider (1–50 mi, default 10, amber warning above 15)
-- [x] Year dropdown (1997–2024, default latest)
+- [x] Year dropdown (1997–2024, default latest — range lives in `src/lib/constants.ts`)
 - [x] Crop filter checkboxes with color swatches (persisted to localStorage)
 - [x] Hint when no crops selected: "No crops selected — all crop data will be shown"
 - [x] Explicit Search button (no auto-search)
@@ -36,6 +37,7 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] localStorage persistence (location, radius, crop filters, waypoints, sidebar state)
 
 **PR review polish:**
+
 - [x] SSE-streamed step progress messages during CDL fetch ("Fetching...", "Extracting...", "Preparing...")
 - [x] Draggable center marker — bounding box live-updates during drag
 - [x] Map pans to follow marker when location set via search (not on drag/click)
@@ -56,11 +58,22 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] **Area Summary / crop statistics** — Collapsible section below Search button; `computeCropStats` uses `georaster.values[0]` for pixel counts and `georaster.palette` for exact CDL colors. `CDL_LABELS` covers all 130 CDL values for labeling.
 - [x] **Complete CDL value lookup** — `CDL_LABELS` record in `crops.ts` with all 130 CDL IDs and names; no more `Other (ID: X)` in stats.
 
+## Implemented (PR #3 — audit tranche 1, open 2026-08-26)
+
+- [x] **Prettier sweep** — `npm run lint` was failing on 14 unformatted files (audit C1)
+- [x] **Pan regression fixed** — the map no longer re-centers on map click or marker drag; only address search / lat-lon entry pans (audit B1)
+- [x] **Overlay pinned to the searched bbox** — `SearchResult` snapshot captured before the request, so dragging the marker mid-fetch no longer misplaces the raster (audit B2). ⚠️ not yet verified live
+- [x] **Repeat-search soft-lock fixed** — a fresh result object per search retriggers the overlay effect even on byte-identical data (audit B3). ⚠️ not yet verified live
+- [x] **CDL year range consolidated** — `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`/`CDL_YEARS`); next year's bump is one line (audit B4)
+- [x] **CDL fetch timeouts** — `AbortSignal.timeout()` on all three server-side requests; a hung NASS now surfaces "USDA CDL service is not responding — try again later" instead of an endless spinner (audit B5). Verified live against a real outage.
+
 ## Planned (Near-Term Follow-ups)
 
 High-value features deferred from initial build:
-- [ ] **Year comparison** — toggle between two years' overlays
+
+- [ ] **Year comparison** — toggle between two years' overlays (blocked: do audit plan 2a, overlay hardening, first)
 - [ ] **Year opacity blending** — independent opacity per year for visual comparison
+- [ ] **UI/UX redesign** — deliberate visual + interaction pass using the `frontend-design` plugin (installed 2026-08-26) and `theme-factory`. Tranche 3 in `planning/audit-2026-08-26.md`; start with `brainstorming`. Must preserve the settled UX decisions (no auto-search, inform-don't-restrict, localStorage persistence, swatches from the live raster palette). Likely absorbs D2–D5.
 
 ---
 
@@ -87,7 +100,7 @@ High-value features deferred from initial build:
 - Must proxy CDL PNG server-side (NASS servers don't send CORS headers)
 - Coordinate projection: input EPSG:4326 → bounding box EPSG:5070 (Albers) for CDL API
 - CDL API returns XML; must parse `returnURL` and `returnURLArray` elements
-- Year range currently supported by CDL: 1997–2024 (validate on input)
+- Year range currently supported by CDL: 1997–2024 (validate on input) — single source of truth is `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`)
 - Radius capped at 50 miles to avoid huge/slow requests
 
 ### Non-Functional
@@ -103,7 +116,7 @@ High-value features deferred from initial build:
 
 ## Blockers / Known Issues
 
-- **CDL API intermittently down** — Requests hang at "Fetching crop data..." with no response. Not a code bug; upstream USDA NASS service issue. No workaround.
+- **CDL API intermittently down** — Requests **hang** rather than erroring. Measured 2026-08-26: `status=000 size=0 time=40.001s` while the host itself answers (CropScape returns 302). Upstream USDA NASS issue, not a code bug. Since PR #3 the app degrades gracefully — a 60s `AbortSignal.timeout` surfaces "USDA CDL service is not responding — try again later" — but there is still no way to get data while NASS is down.
 - ~~**CROPS filter colors unverified**~~ — Resolved 2026-08-23 (`7778cb6`). All 13 filter colors were checked against the real `georaster.palette` from a live CDL raster; **12 of 13 were wrong** (only Sorghum `#FF9E0A` was already correct). Barley was brown instead of magenta and Oats periwinkle instead of purple — the corrected values now agree with the semantic legend in `CLAUDE.md`. The 4 stale vitest failures are fixed; suite is 42/42.
   - Corn is `#FFD200` (RGB 255,210,0), **not** the `#FFD300` published on the CropScape legend page. Verified against the raw TIFF `ColorMap` tag: the green channel is `53970` = `210 × 257` exactly, so the 16→8-bit conversion is lossless and the raster genuinely says 210. The overlay renders from the raster, so `#FFD200` is what matches on screen.
 - ~~**`Unknown (ID: 0)` bogus row in Area Summary**~~ — Fixed 2026-08-23 (`dbf4bcf`). `georaster.noDataValue` is `null` at runtime while `palette[0]` is opaque black, so the `?? 0` coalesce is required or value-0 pixels paint black. The renderer coalesced but `computeCropStats` got the raw `null` and counted those pixels. Both call sites now share one hoisted `const noData = georaster.noDataValue ?? 0`; verified live that the spurious row is gone and percentages still renormalize.

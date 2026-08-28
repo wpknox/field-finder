@@ -8,12 +8,19 @@
 	import { computeCropStats, type CropStat } from '$lib/cropStats';
 	import { resolveCropColors, type CdlPalette } from '$lib/crops';
 	import { rasterToDataUrl } from '$lib/renderGeoraster';
+	import type { SearchResult } from '$lib/searchResult';
 
+	// Two sources of center/radius live here, and they are NOT interchangeable:
+	//   • live `center` / `radius` — drive the marker and the bbox preview rectangle,
+	//     and must track the user's drags in real time.
+	//   • `searchResult.{lat,lon,radius}` — the frozen bbox the raster was actually
+	//     fetched for, and the only thing the overlay may be placed with.
+	// Never mix them: using the live values for the overlay is exactly audit B2.
 	let {
 		center = $bindable<[number, number]>([39.8, -98.5]),
 		zoom = 5,
 		radius = 10,
-		tifBase64 = '',
+		searchResult = null,
 		overlayOpacity = 0.7,
 		loadingMessage = $bindable(''),
 		panVersion = 0,
@@ -26,7 +33,7 @@
 		center?: [number, number];
 		zoom?: number;
 		radius?: number;
-		tifBase64?: string;
+		searchResult?: SearchResult | null;
 		overlayOpacity?: number;
 		loadingMessage?: string;
 		panVersion?: number;
@@ -135,11 +142,12 @@
 	});
 
 	// Pan map when the parent signals a new location was selected (address search / lat-lon input).
-	// panVersion is only incremented by handleLocationSelect, not by map clicks or marker drag,
-	// so this won't fight with interactions where the map is already at the right position.
+	// panVersion is only incremented by handleLocationSelect, not by map clicks or marker drag.
+	// center is read untracked so that panVersion is the effect's ONLY reactive dependency —
+	// otherwise a click or drag (which changes center) would re-pan the map. See audit B1.
 	$effect(() => {
 		if (!mapReady || !map || panVersion === 0) return;
-		const [lat, lon] = center;
+		const [lat, lon] = untrack(() => center);
 		map.panTo([lat, lon]);
 	});
 
@@ -166,7 +174,7 @@
 	// lat/lon bounds (no per-zoom re-render, so zooming stays smooth). Reads overlay
 	// and overlayOpacity via untrack() to avoid making them reactive dependencies.
 	$effect(() => {
-		if (!mapReady || !map || !tifBase64) return;
+		if (!mapReady || !map || !searchResult) return;
 
 		const oldOverlay = untrack(() => overlay);
 		if (oldOverlay) {
@@ -175,12 +183,17 @@
 			cropStats = [];
 		}
 
-		const currentTif = tifBase64;
-		// Capture search-time center/radius without registering as reactive deps —
-		// the overlay should stay pinned to the searched location even if the user
-		// drags the marker afterward.
-		const [lat, lon] = untrack(() => center);
-		const r = untrack(() => radius);
+		// The snapshot carries the center/radius the search was issued with, so the
+		// overlay lands on the searched bbox regardless of what the user has moved
+		// since. A new object per search also guarantees this effect re-runs even
+		// when two searches return identical raster bytes. See audit B2/B3.
+		const currentResult = searchResult;
+		const {
+			tifBase64: currentTif,
+			lat: searchLat,
+			lon: searchLon,
+			radius: searchRadius
+		} = currentResult;
 
 		(async () => {
 			try {
@@ -195,7 +208,7 @@
 				const parseGeoraster = await import('georaster').then((m) => m.default);
 				const georaster = await parseGeoraster(bytes.buffer);
 
-				if (tifBase64 !== currentTif) return;
+				if (searchResult !== currentResult) return;
 
 				// CDL value 0 is background, but georaster.noDataValue is null and
 				// palette[0] is opaque black — so null must be normalized to 0, or
@@ -213,7 +226,7 @@
 					georaster.palette
 				);
 
-				const bbox = computeBboxLatLon(lat, lon, r);
+				const bbox = computeBboxLatLon(searchLat, searchLon, searchRadius);
 				const bounds: [[number, number], [number, number]] = [
 					[bbox.south, bbox.west],
 					[bbox.north, bbox.east]
@@ -227,7 +240,7 @@
 				loadingMessage = '';
 			} catch (err) {
 				console.error('GeoTIFF rendering error:', err);
-				if (tifBase64 === currentTif) {
+				if (searchResult === currentResult) {
 					loadingMessage = '';
 					errorMessage = 'Failed to render crop overlay';
 				}
