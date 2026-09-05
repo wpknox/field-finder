@@ -28,15 +28,15 @@ It does **not** attempt to replace onX. It adds the three pieces the group actua
 
 Verified live on 2026-09-04 against the Eustis, NE test location (40.553950, -100.076157).
 
-| Source                              | What it provides                                                                                                                                                                           | Verified facts                                                                                                                                                                                        |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| USGS Imagery Only tile service      | NAIP-based aerial imagery, public domain, cached XYZ tiles, no key                                                                                                                          | ~0.35 s per tile; visible to 1:9,028 (≈ Leaflet zoom 16); URL pattern `.../USGSImageryOnly/MapServer/tile/{z}/{y}/{x}` (note `y` before `x`)                                                          |
-| Nebraska Statewide Parcels          | Statewide polygons + assessor attributes, free ArcGIS FeatureServer, GeoJSON/PBF, pagination, 2,000 records per page                                                                       | 1,770 parcels in the 10 mi test bbox in 0.6 s / 1.3 MB. **No owner-name field.** Has `Parcel_ID`, `Situs_Address`, `Legal_Description`, `GIS_Acres`, `Irrigation_Type`, `County_ID`, `Parcel_URL` (often empty). Test point is a 473-acre Frontier County tract. License: "for general use and analysis within the state." |
-| Colorado Public Parcels             | Statewide polygons, free ArcGIS FeatureServer, updated annually                                                                                                                            | Includes `owner`, `owner2`, `ownerAdd`, `situsAdd`, `landAcres`, `legalDesc`, `countyName`, `URL`                                                                                                     |
-| PAD-US 4.1 Fee Managers (USGS)      | National public-land polygons with owner agency, manager, unit name, public access code (`OA` open, `RA` restricted, `XA` closed, `UK` unknown)                                            | 46 units in a 25 mi box around Eustis, including Darr Strip Wildlife Management Area                                                                                                                  |
-| Nebraska Open Fields and Waters     | Nebraska Game & Parks walk-in tracts for the current season, ArcGIS FeatureServer                                                                                                           | 83 tracts in the same 25 mi box. Service name carries the season (`OFW_2026_2027_...`), so the URL changes yearly                                                                                       |
-| USGS NHDPlus HR / 3DHP water bodies | Pond/lake/reservoir polygons                                                                                                                                                               | 1,171 water bodies in the 10 mi box, down to ~0.25 acre. **Not in this scope** (owner chose imagery over a water data layer) but confirmed viable for later                                            |
-| Regrid                              | Paid nationwide parcels with owner names                                                                                                                                                   | Self-serve plan includes 2,000 records + 200,000 tiles/month; base price only visible after sign-up. **Not in this scope**                                                                              |
+| Source                              | What it provides                                                                                                                                | Verified facts                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| USGS Imagery Only tile service      | NAIP-based aerial imagery, public domain, cached XYZ tiles, no key                                                                              | ~0.35 s per tile; visible to 1:9,028 (≈ Leaflet zoom 16); URL pattern `.../USGSImageryOnly/MapServer/tile/{z}/{y}/{x}` (note `y` before `x`)                                                                                                                                                                               |
+| Nebraska Statewide Parcels          | Statewide polygons + assessor attributes, free ArcGIS FeatureServer, GeoJSON/PBF, pagination, 2,000 records per page                            | 1,770 parcels in the 10 mi test bbox in 0.6 s / 1.3 MB. **No owner-name field.** Has `Parcel_ID`, `Situs_Address`, `Legal_Description`, `GIS_Acres`, `Irrigation_Type`, `County_ID`, `Parcel_URL` (often empty). Test point is a 473-acre Frontier County tract. License: "for general use and analysis within the state." |
+| Colorado Public Parcels             | Statewide polygons, free ArcGIS FeatureServer, updated annually                                                                                 | Includes `owner`, `owner2`, `ownerAdd`, `situsAdd`, `landAcres`, `legalDesc`, `countyName`, `URL`                                                                                                                                                                                                                          |
+| PAD-US 4.1 Fee Managers (USGS)      | National public-land polygons with owner agency, manager, unit name, public access code (`OA` open, `RA` restricted, `XA` closed, `UK` unknown) | 46 units in a 25 mi box around Eustis, including Darr Strip Wildlife Management Area                                                                                                                                                                                                                                       |
+| Nebraska Open Fields and Waters     | Nebraska Game & Parks walk-in tracts for the current season, ArcGIS FeatureServer                                                               | 83 tracts in the same 25 mi box. Service name carries the season (`OFW_2026_2027_...`), so the URL changes yearly                                                                                                                                                                                                          |
+| USGS NHDPlus HR / 3DHP water bodies | Pond/lake/reservoir polygons                                                                                                                    | 1,171 water bodies in the 10 mi box, down to ~0.25 acre. **Not in this scope** (owner chose imagery over a water data layer) but confirmed viable for later                                                                                                                                                                |
+| Regrid                              | Paid nationwide parcels with owner names                                                                                                        | Self-serve plan includes 2,000 records + 200,000 tiles/month; base price only visible after sign-up. **Not in this scope**                                                                                                                                                                                                 |
 
 States with no confirmed free owner-bearing statewide service as of this research: Kansas (county by county), Iowa (statewide layer behind registration, owner field unconfirmed), South Dakota, Wyoming, Missouri. They are simply "uncovered" in v1.
 
@@ -90,9 +90,12 @@ MapView creates each module once when the map is ready, forwards prop changes to
 
 ```ts
 interface LayerProvider<T> {
-  id: string;                       // 'ne-parcels', 'co-parcels', 'padus', 'ne-ofw'
-  extent: LatLonBbox;               // rough coverage rectangle
-  fetch(bbox: LatLonBbox, signal: AbortSignal): Promise<GeoJSON.FeatureCollection<Polygon | MultiPolygon, T>>;
+	id: string; // 'ne-parcels', 'co-parcels', 'padus', 'ne-ofw'
+	extent: LatLonBbox; // rough coverage rectangle
+	fetch(
+		bbox: LatLonBbox,
+		signal: AbortSignal
+	): Promise<GeoJSON.FeatureCollection<Polygon | MultiPolygon, T>>;
 }
 ```
 
@@ -134,10 +137,10 @@ The bottom-left hint area is a single slot shared by the existing waypoint hint 
 
 **Data.** `src/lib/basemaps.ts` exports a constant list:
 
-| id       | Tiles                                                                                              | Attribution                                    | Notes                                                                     |
-| -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
-| `street` | `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png` (existing)                                    | © OpenStreetMap contributors                   | Default                                                                   |
-| `aerial` | `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}` | USGS, USDA — The National Map: Orthoimagery    | `maxNativeZoom: 16` so Leaflet upscales rather than requesting missing tiles past 16 |
+| id       | Tiles                                                                                             | Attribution                                 | Notes                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `street` | `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png` (existing)                                   | © OpenStreetMap contributors                | Default                                                                              |
+| `aerial` | `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}` | USGS, USDA — The National Map: Orthoimagery | `maxNativeZoom: 16` so Leaflet upscales rather than requesting missing tiles past 16 |
 
 **Zoom bound.** The map currently sets no explicit `maxZoom` and inherits Leaflet's default. This sub-project sets `MAP_MAX_ZOOM = 19` in one place and applies it to the map and to both tile layers, so the map, the street tiles, and the aerial tiles agree.
 
@@ -157,19 +160,19 @@ The bottom-left hint area is a single slot shared by the existing waypoint hint 
 
 ```ts
 interface Parcel {
-  id: string;                 // the assessor's parcel number (NE Parcel_ID, CO parcel_id) — for display
-                              // and county lookup. Deliberately NOT the GeoJSON feature id, which is
-                              // the service OBJECTID and is what the client dedupes on.
-  provider: string;           // 'ne-parcels' | 'co-parcels'
-  state: 'NE' | 'CO';
-  county: string | null;
-  owner: string | null;       // null when the source does not publish it
-  ownerAddress: string | null;
-  situsAddress: string | null;
-  legalDescription: string | null;
-  acres: number | null;
-  irrigation: string | null;  // NE only; null elsewhere
-  lookupUrl: string | null;   // county record URL when the source provides one
+	id: string; // the assessor's parcel number (NE Parcel_ID, CO parcel_id) — for display
+	// and county lookup. Deliberately NOT the GeoJSON feature id, which is
+	// the service OBJECTID and is what the client dedupes on.
+	provider: string; // 'ne-parcels' | 'co-parcels'
+	state: 'NE' | 'CO';
+	county: string | null;
+	owner: string | null; // null when the source does not publish it
+	ownerAddress: string | null;
+	situsAddress: string | null;
+	legalDescription: string | null;
+	acres: number | null;
+	irrigation: string | null; // NE only; null elsewhere
+	lookupUrl: string | null; // county record URL when the source provides one
 }
 ```
 
@@ -234,12 +237,12 @@ Hints and the "not available here yet" message render in the existing bottom-lef
 type AccessClass = 'open' | 'restricted' | 'closed' | 'unknown';
 
 interface PublicLand {
-  id: string;
-  provider: string;          // 'padus' | 'ne-ofw'
-  program: string;           // 'PAD-US' | 'Nebraska Open Fields and Waters'
-  name: string | null;       // unit name
-  manager: string | null;    // managing agency
-  access: AccessClass;
+	id: string;
+	provider: string; // 'padus' | 'ne-ofw'
+	program: string; // 'PAD-US' | 'Nebraska Open Fields and Waters'
+	name: string | null; // unit name
+	manager: string | null; // managing agency
+	access: AccessClass;
 }
 ```
 
@@ -263,12 +266,12 @@ Mapping: `name` = `"Open Fields & Waters tract"` plus county, `manager` = `"Nebr
 
 - **Style** by access class, fill opacity 0.25, stroke weight 1 in the same hue, `bubblingMouseEvents: false`:
 
-  | Access     | Fill      |
-  | ---------- | --------- |
-  | open       | `#16a34a` (green-600)  |
-  | restricted | `#f59e0b` (amber-500)  |
-  | closed     | `#dc2626` (red-600)    |
-  | unknown    | `#6b7280` (gray-500)   |
+  | Access     | Fill                  |
+  | ---------- | --------------------- |
+  | open       | `#16a34a` (green-600) |
+  | restricted | `#f59e0b` (amber-500) |
+  | closed     | `#dc2626` (red-600)   |
+  | unknown    | `#6b7280` (gray-500)  |
 
 - **Click popup:** unit name, managing agency, access class in words ("Open to the public", "Restricted access", "Closed to the public", "Access unknown"), and the program it came from.
 - **Legend:** while the layer is visible, `Legend.svelte` shows a "Public Land" group with the four swatches above. Swatches and layer style must read from the same constant so they cannot drift — the same rule the crop swatches already follow.
@@ -295,16 +298,16 @@ A **Public Land** checkbox in `MapLayers.svelte`. State `showPublicLand: boolean
 
 ## Error handling summary
 
-| Situation                                   | Behaviour                                                                                      |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Zoom below the layer's threshold (13 parcels, 11 public land) | Hint "Zoom in to see property lines" / "…public land"; no fetch                  |
-| Viewport wider than the bbox cap            | Client clamps the request to 1.0° centred on the map; edges may be unpopulated until the user pans |
-| Viewport outside every provider's extent    | Hint "Property lines not available here yet"; no toast                                         |
-| One provider fails, another succeeds        | Draw what succeeded; one toast naming the layer; suppress repeats until the error changes      |
-| Every intersecting provider fails           | 502 from the route; toast "Property lines unavailable right now" (or public-land equivalent); already-drawn features stay |
-| Upstream hangs                              | 15 s timeout, classified as a timeout, same toast as above                                     |
-| Aerial tiles fail to load                   | Leaflet shows blank tiles; no toast (tile errors are per-tile and transient)                   |
-| Malformed or oversized bbox                 | 400; treated as a client bug, not surfaced to the user beyond the generic toast                |
+| Situation                                                     | Behaviour                                                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Zoom below the layer's threshold (13 parcels, 11 public land) | Hint "Zoom in to see property lines" / "…public land"; no fetch                                                           |
+| Viewport wider than the bbox cap                              | Client clamps the request to 1.0° centred on the map; edges may be unpopulated until the user pans                        |
+| Viewport outside every provider's extent                      | Hint "Property lines not available here yet"; no toast                                                                    |
+| One provider fails, another succeeds                          | Draw what succeeded; one toast naming the layer; suppress repeats until the error changes                                 |
+| Every intersecting provider fails                             | 502 from the route; toast "Property lines unavailable right now" (or public-land equivalent); already-drawn features stay |
+| Upstream hangs                                                | 15 s timeout, classified as a timeout, same toast as above                                                                |
+| Aerial tiles fail to load                                     | Leaflet shows blank tiles; no toast (tile errors are per-tile and transient)                                              |
+| Malformed or oversized bbox                                   | 400; treated as a client bug, not surfaced to the user beyond the generic toast                                           |
 
 ---
 

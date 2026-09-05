@@ -374,3 +374,27 @@ Error shape verified empirically on Node 24 by forcing a real connect timeout ag
 **Why unreachable-host codes are excluded:** "not responding" is an honest description of a timeout and a misleading one for a refused connection or a DNS failure, which may well be the _user's_ network rather than NASS. Those keep the generic message.
 
 **Alternatives considered:** Recursively walking the whole `cause` chain (undici nests exactly one level; unbounded walking invites false positives from unrelated wrapped errors); matching on `err.message === 'fetch failed'` (brittle string matching against a Node internal); lowering `CDL_TIMEOUT_MS` below 10s so our signal always wins (would abort legitimately slow-but-working CDL requests, which routinely take seconds).
+
+---
+
+### [2026-09-04] Property lines, imagery, and public land come from free state/federal services behind a per-state provider registry — not from a paid aggregator
+
+**Decision:** Build the onX-replacement layers (aerial imagery, parcels, public land) on free sources: USGS Imagery Only tiles for the basemap, Nebraska and Colorado statewide parcel feature services for property lines, PAD-US plus Nebraska Open Fields & Waters for public land. Parcels and public land sit behind a server-side `LayerProvider` registry keyed by state extent, so a paid nationwide provider (Regrid) can be added as one more adapter later without touching the client. Full design: `docs/superpowers/specs/2026-09-04-property-lines-imagery-public-land-design.md`.
+
+**Reason:** The project rule is "no paid API keys for core functionality." Research on 2026-09-04 showed the free path is real for the states the group hunts: Nebraska's statewide service returned 1,770 parcels for the 10 mi test box in 0.6 s, and Colorado's includes owner names. The one gap is that **Nebraska's public statewide layer has no owner-name field** — owner names exist only on per-county portals with no API. Rather than pay for Regrid to close that gap on day one, the parcel popup shows "Owner not published by this state" plus a county lookup link, and the provider interface is where Regrid goes if the group decides it is worth a subscription.
+
+**Also settled:** aerial imagery (visual inspection) was chosen over a hydrography data layer for finding water, even though NHDPlus HR was verified to contain small ponds — the owner wants to eyeball stock tanks the way they do in onX. The hydrography layer stays in the ideas list.
+
+**Alternatives considered:** Regrid from day one (owner names everywhere, but a monthly fee whose base price is hidden behind sign-up, and a vendor dependency for a core layer); imagery and public land only, deferring parcels (smallest scope, but leaves the group in onX for boundaries, which was the point).
+
+---
+
+### [2026-09-04] Map layers are per-file modules under `src/lib/map/`; MapView only wires them
+
+**Decision:** Each new Leaflet layer (basemap switcher, parcels, public land) is its own module exporting a factory with `setVisible` / `destroy`, plus `onError` / `onStatus` callbacks for data layers. `MapView.svelte` instantiates them once and forwards props; it gains no new inline layer logic.
+
+**Reason:** `MapView.svelte` is 355 lines with every existing layer written inline. Adding three more the same way would make it the largest and least testable file in the project. The audit already flagged split ownership inside it (F4). Bounded modules can be unit-tested against a fake map and reasoned about in isolation.
+
+**Consequences baked into the spec that are easy to get wrong:** data-layer polygons must set `bubblingMouseEvents: false` (otherwise a click reaches the map handler and silently moves the search marker); polygons need `fill: true` with `fillOpacity: 0` to be clickable while transparent; parcels fetch only at zoom ≥ 13 and public land at ≥ 11, with the request bbox clamped client-side to 1.0° because ultrawide displays exceed a naive cap; the bottom-left hint slot is shared and needs a precedence rule.
+
+**Alternatives considered:** Continuing inline in MapView (fastest, but the reason the file is already hard to work in); a Svelte store per layer (the codebase's established pattern is prop-drilling from `+page.svelte`, and introducing a second state mechanism for three toggles is not justified).

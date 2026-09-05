@@ -73,13 +73,17 @@ High-value features deferred from initial build:
 
 - [ ] **Year comparison** — toggle between two years' overlays (blocked: do audit plan 2a, overlay hardening, first)
 - [ ] **Year opacity blending** — independent opacity per year for visual comparison
+- [ ] **Aerial imagery basemap toggle** — Street / Aerial switch using USGS Imagery Only tiles (free, keyless, public domain). Spec: `docs/superpowers/specs/2026-09-04-property-lines-imagery-public-land-design.md`, sub-project 1. Build after tranche 2a.
+- [ ] **Property lines (parcel layer)** — viewport-fetched parcels from free state services via a provider registry (Nebraska: no owner name, county deep link instead; Colorado: owner name + address). Same spec, sub-project 2. Regrid is a future paid provider slot, not built.
+- [ ] **Public land layer** — PAD-US + Nebraska Open Fields & Waters, shaded by access class, legend swatches from the same constant. Same spec, sub-project 3. Kansas WIHA is a later adapter.
 - [ ] **UI/UX redesign** — deliberate visual + interaction pass using the `frontend-design` plugin (installed 2026-08-26) and `theme-factory`. Tranche 3 in `planning/audit-2026-08-26.md`; start with `brainstorming`. Must preserve the settled UX decisions (no auto-search, inform-don't-restrict, localStorage persistence, swatches from the live raster palette). Likely absorbs D2–D5.
 
 ---
 
 ## Ideas / Future Features
 
-- [ ] **Water source data** — stock tanks, ponds, watering holes (National Hydrography Dataset or similar). High value for dove hunting.
+- [ ] **Water source data** — stock tanks, ponds, watering holes. Verified 2026-09-04: USGS NHDPlus HR water-body layer returns 1,171 ponds/reservoirs in the 10 mi test box, down to ~0.25 acre, in ~1 s. Deliberately deferred in favor of the aerial imagery toggle (owner's call); would reuse the parcel layer's provider/bbox plumbing.
+- [ ] **Owner-name lookup for Nebraska parcels** — the free statewide layer omits owners; counties publish them only via per-county portals (gworks / nebraskaassessors.com) with no API. Options: Regrid (paid), or per-county scraping (fragile). Revisit once the parcel layer exists.
 - [ ] **Habitat highlighting** — auto-identify grain-adjacent-to-cover patterns. Needs accuracy validation.
 - [ ] **Image Overlay Placement Accuracy (Albers→Mercator skew)** — The overlay is an EPSG:5070 (Albers) raster painted onto a Mercator (`L.imageOverlay`) map, so there is minor placement skew. Per-pixel Albers→Mercator warping is not implemented. Live-verified 2026-08-23: skew is present but placement is acceptable in practice at the tested radius/location. Not blocking, but not fixed.
 - [ ] **Saved locations / user accounts** — bookmarking + light auth (requires database)
