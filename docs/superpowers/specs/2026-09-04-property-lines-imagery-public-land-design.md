@@ -50,7 +50,9 @@ This spec is one document but three independently shippable sub-projects, each w
 2. **Parcel layer** — the bulk of the new architecture (provider registry, bbox route, viewport fetching, popups).
 3. **Public land layer** — reuses everything sub-project 2 built; adds two providers and a legend section.
 
-**Sequencing against existing work:** all three touch `MapView.svelte` and `+page.svelte`, as does the queued audit tranche 2a (overlay hardening). Do 2a first, then this work, then the tranche 3 UI redesign so the redesign sees the final set of layers.
+**Sequencing against existing work:** all three touch `MapView.svelte` and `+page.svelte`, as does the queued audit tranche 2a (overlay hardening). Do 2a first, then this work, then the tranche 3 UI redesign so the redesign sees the final set of layers. Tranche 2a is defined in the "Tranche 2 — TO BE PLANNED" section of `planning/audit-2026-08-26.md`, which lands on `main` with PR #3.
+
+**Prerequisite:** this spec assumes **PR #3 (audit tranche 1) is merged.** It relies on symbols that PR introduces: `src/lib/constants.ts` (`CDL_MAX_YEAR`), and the timeout handling in `src/lib/server/cdl.ts` (`CDL_TIMEOUT_MS`, `CdlTimeoutError`, `isTimeoutError`). None of these exist on `main` as of 2026-09-04. Do not plan against `main` until #3 has merged.
 
 ---
 
@@ -96,15 +98,16 @@ interface LayerProvider<T> {
 
 A registry per layer selects every provider whose `extent` intersects the requested bbox, runs them concurrently, and merges the results. A bbox straddling a state line therefore returns both states' parcels. If no provider intersects, the route still succeeds with an empty collection and `meta.uncovered = true`.
 
-A shared helper, `src/lib/server/arcgis.ts`, speaks the ArcGIS REST `query` protocol used by every upstream in this spec: builds the envelope query (`inSR=4326`, `outSR=4326`, `f=geojson`, `geometryPrecision=6`), follows `exceededTransferLimit` pagination via `resultOffset` up to a hard page cap, and applies `AbortSignal.timeout`. Adapters only supply the service URL, the `outFields` list, and a normalization function from raw attributes to the layer's record type.
+A shared helper, `src/lib/server/arcgis.ts`, speaks the ArcGIS REST `query` protocol used by every upstream in this spec: builds the envelope query (`inSR=4326`, `outSR=4326`, `f=geojson`, `geometryPrecision=6`), paginates via `resultOffset` up to a hard page cap, and applies `AbortSignal.timeout`. Pagination continues when **either** the response carries `exceededTransferLimit: true` **or** the page returned exactly the service's `maxRecordCount` — ArcGIS Online emits the flag in GeoJSON output but older ArcGIS Enterprise servers (Nebraska's `gis.ne.gov`) may not. Test fixtures for the helper are captured from each real upstream, not hand-written. Adapters only supply the service URL, the `outFields` list, and a normalization function from raw attributes to the layer's record type.
 
 ### Route contract (data layers)
 
 `GET /api/parcels?bbox=west,south,east,north` and `GET /api/public-land?bbox=west,south,east,north`.
 
 - Parses and validates the bbox: four finite numbers, `west < east`, `south < north`, within world bounds.
-- Rejects with 400 if the bbox exceeds `LAYER_MAX_BBOX_DEG` (0.5° in either axis — roughly 35 mi). The client's zoom threshold means a well-behaved client never hits this; it is a guard against abuse and bugs, not a UX path.
-- Returns a GeoJSON `FeatureCollection` whose `properties` are the normalized record, plus a top-level `meta` object: `{ providers: string[], uncovered: boolean, truncated: boolean }`. `truncated` is true if any provider hit the page cap.
+- Rejects with 400 if the bbox exceeds `LAYER_MAX_BBOX_DEG` (1.0° in either axis — roughly 70 mi). The **client clamps** its request to this cap (see the fetch lifecycle below), so a correct client never receives the 400; the server check is a guard against abuse and bugs, not a UX path.
+- Returns a GeoJSON `FeatureCollection` whose `properties` are the normalized record, plus a top-level `meta` object: `{ providers: string[], failed: string[], uncovered: boolean, truncated: boolean }`. `providers` lists those that answered, `failed` those that errored, `truncated` is true if any provider hit the page cap.
+- Every feature's GeoJSON `id` is set to the upstream service's object id (`OBJECTID`), which is what the ArcGIS `f=geojson` output already emits. The client dedupe key is `provider + ':' + feature.id`, never a name or parcel number, since unit names in PAD-US are not unique.
 - Upstream timeout or failure from **one** provider does not fail the whole response when another succeeded; the failed provider is omitted from `meta.providers` and listed in `meta.failed`. If **all** intersecting providers fail, the route returns 502 with the layer's user-facing message.
 
 ### Timeouts and error classification
@@ -114,11 +117,16 @@ A shared helper, `src/lib/server/arcgis.ts`, speaks the ArcGIS REST `query` prot
 
 ### Client fetch lifecycle (data layers)
 
-- Fetch only while the layer is visible **and** `map.getZoom() >= LAYER_MIN_ZOOM` (13). Below that, call `onStatus('Zoom in to see property lines')` (or the public-land equivalent) and draw nothing new.
+- Fetch only while the layer is visible **and** `map.getZoom()` is at or above the layer's minimum zoom. Each layer declares its own: `PARCEL_MIN_ZOOM = 13` (parcels are small and dense) and `PUBLIC_LAND_MIN_ZOOM = 11` (public units are large and sparse, and hunters want to spot them from further out). Below the threshold, call `onStatus('Zoom in to see property lines')` (or `'Zoom in to see public land'`) and draw nothing new.
 - Trigger on `moveend` (Leaflet fires this after pan and zoom), debounced 250 ms. Cancel any in-flight request with an `AbortController` before issuing a new one.
-- Request the current map viewport bounds padded by 10% so small pans do not immediately refetch.
-- Keep features in a `Map<string, Layer>` keyed by `provider + ':' + id`. Add only features not already present; never clear the layer on pan. Clear everything on `setVisible(false)`.
+- Request the current map viewport bounds padded by 10%, then **clamp** the result to `LAYER_MAX_BBOX_DEG` on each axis, centred on the map centre. The three numbers are chosen together: at zoom 11 a 2,600 px-wide map padded 10% spans about 2° of longitude, so clamping is a real path on wide displays, not a theoretical one. Clamping keeps the request valid; the edges of an ultrawide viewport may simply be unpopulated until the user pans.
+- Keep features in a `Map<string, Layer>` keyed by `provider + ':' + feature.id`. Add only features not already present; never clear the layer on pan. Clear everything on `setVisible(false)`.
+- All data-layer polygons are created with `bubblingMouseEvents: false` so clicking a parcel or public-land unit opens its popup **without** reaching the map's `click` handler. Without this, Leaflet bubbles the click to the map, `onMapClick` fires, and the search marker silently jumps to the clicked spot and overwrites the saved location. Polygons are created with `fill: true` and the layer's fill opacity (0 for parcels), because Leaflet only makes the interior clickable when fill is enabled.
 - Surface `meta.uncovered` via `onStatus('Property lines not available here yet')` and `meta.failed` (when some but not all providers failed) via `onError` once, not per pan — track the last error string and suppress repeats until it changes.
+
+### Hint slot arbitration
+
+The bottom-left hint area is a single slot shared by the existing waypoint hint ("Right-click to add waypoint · Drag to reposition") and the two data layers' `onStatus` messages. MapView keeps one nullable hint per source and renders the first non-null in this precedence: parcel status, then public-land status, then the default waypoint hint. A layer clears its hint (`onStatus(null)`) when it turns off or when its condition no longer holds, so the slot always falls back to the default rather than going blank.
 
 ---
 
@@ -129,7 +137,9 @@ A shared helper, `src/lib/server/arcgis.ts`, speaks the ArcGIS REST `query` prot
 | id       | Tiles                                                                                              | Attribution                                    | Notes                                                                     |
 | -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
 | `street` | `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png` (existing)                                    | © OpenStreetMap contributors                   | Default                                                                   |
-| `aerial` | `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}` | USGS, USDA — The National Map: Orthoimagery    | `maxNativeZoom: 16`, `maxZoom` matches the map so Leaflet upscales past 16 |
+| `aerial` | `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}` | USGS, USDA — The National Map: Orthoimagery    | `maxNativeZoom: 16` so Leaflet upscales rather than requesting missing tiles past 16 |
+
+**Zoom bound.** The map currently sets no explicit `maxZoom` and inherits Leaflet's default. This sub-project sets `MAP_MAX_ZOOM = 19` in one place and applies it to the map and to both tile layers, so the map, the street tiles, and the aerial tiles agree.
 
 **Client.** `src/lib/map/basemap.ts` creates both tile layers once, adds the selected one, and swaps on change. Tile layers sit at Leaflet's default tile pane, so the CDL image overlay, bbox rectangle, and markers stay above them without z-index changes.
 
@@ -179,7 +189,7 @@ Mapping: `owner` joins `owner` and `owner2` with `" & "` when both present; `own
 
 `src/lib/map/parcelLayer.ts` implements the shared fetch lifecycle above against `/api/parcels`.
 
-- **Style:** stroke `#1f2937` (gray-800), weight 1, opacity 0.8, fill opacity 0. Parcels must not obscure the CDL overlay or the aerial imagery beneath them.
+- **Style:** stroke `#1f2937` (gray-800), weight 1, opacity 0.8, `fill: true` with `fillOpacity: 0` (fill enabled so the interior is clickable, transparent so it obscures nothing), `bubblingMouseEvents: false`. Parcels must not obscure the CDL overlay or the aerial imagery beneath them.
 - **Hover:** weight 2.5. Reset on mouseout.
 - **Click popup**, in this order:
   1. Owner name (bold) when present; otherwise the line _"Owner not published by this state"_.
@@ -209,7 +219,8 @@ Hints and the "not available here yet" message render in the existing bottom-lef
 - `parcels/index.spec.ts`: registry selects NE only, CO only, both (border bbox), and none (Kansas bbox → `uncovered: true`); one provider failing while another succeeds yields a 200 with `meta.failed`.
 - `api/parcels/server.spec.ts`: bbox parsing rejects malformed input, inverted bounds, and oversized boxes with 400.
 - `localStorage.spec.ts`: round-trip for `ff-show-parcels`.
-- Live (Playwright) at the test location, zoom 14, Property Lines on: parcels render; clicking the marker's parcel shows a ~473-acre Frontier County tract with "Owner not published by this state" and the assessor link; panning does not flicker existing parcels; zooming out below 13 shows the zoom hint.
+- `api/parcels/server.spec.ts` also covers a request exactly at the 1.0° cap (accepted) and one just over it (400). A client-side test asserts the viewport-to-request clamp produces a bbox no wider than the cap for an oversized viewport.
+- Live (Playwright) at the test location, zoom 14, Property Lines on: parcels render; clicking inside the parcel that contains the marker, at a point away from the marker icon itself, shows a ~473-acre Frontier County tract with "Owner not published by this state" and the assessor link; the search marker and saved location are unchanged afterwards; panning does not flicker existing parcels; zooming out below 13 shows the zoom hint and the hint reverts to the waypoint default when the layer is turned off.
 
 ---
 
@@ -240,13 +251,13 @@ Access mapping: `OA → open`, `RA → restricted`, `XA → closed`, anything el
 **Nebraska Open Fields and Waters** (`src/lib/server/publicLand/nebraskaOfw.ts`)
 Service: the current season's layer under `https://services5.arcgis.com/IOshH1zLrIieqrNk/arcgis/rest/services/` (at research time `OFW_2026_2027_QA_Web_Map_View/FeatureServer/0`). The season-specific service name lives in one constant, `NE_OFW_SERVICE`, in `src/lib/constants.ts` beside `CDL_MAX_YEAR`, because it changes every year exactly the way the CDL year does.
 `outFields`: `ContractNumber2, County, ContractAcres`.
-Mapping: `name` = `"Open Fields & Waters tract"` plus county, `manager` = `"Nebraska Game and Parks Commission"`, `access = 'open'`. Extent: Nebraska.
+Mapping: `name` = `"Open Fields & Waters tract"` plus county, `manager` = `"Nebraska Game and Parks Commission"`, `access = 'open'`. Extent: Nebraska. Feature `id` is the service `OBJECTID`, as for every provider; `ContractNumber2` is carried as a display attribute only.
 
 ### Client
 
-`src/lib/map/publicLandLayer.ts`, same lifecycle as parcels against `/api/public-land`.
+`src/lib/map/publicLandLayer.ts`, same lifecycle as parcels against `/api/public-land`, with `PUBLIC_LAND_MIN_ZOOM = 11`.
 
-- **Style** by access class, fill opacity 0.25, stroke weight 1 in the same hue:
+- **Style** by access class, fill opacity 0.25, stroke weight 1 in the same hue, `bubblingMouseEvents: false`:
 
   | Access     | Fill      |
   | ---------- | --------- |
@@ -273,7 +284,7 @@ A **Public Land** checkbox in `MapLayers.svelte`. State `showPublicLand: boolean
 - `nebraskaOfw.spec.ts`: normalizes a recorded feature; access is always `open`.
 - `publicLand/index.spec.ts`: registry returns PAD-US alone outside Nebraska and both inside.
 - `Legend` test: public-land swatches appear only when the layer is on and use the shared constant.
-- Live at the test location, zoom 12, Public Land on: Darr Strip Wildlife Management Area renders green; clicking it names the unit and "Nebraska Game and Parks"; at least one Open Fields tract renders within the 25 mi box.
+- Live at the test location, zoom 12 (above the layer's threshold of 11), Public Land on: Darr Strip Wildlife Management Area renders green; clicking it names the unit and "Nebraska Game and Parks" and leaves the search marker where it was; at least one Open Fields tract renders within the 25 mi box; zooming out to 10 shows the public-land zoom hint.
 
 ---
 
@@ -281,7 +292,8 @@ A **Public Land** checkbox in `MapLayers.svelte`. State `showPublicLand: boolean
 
 | Situation                                   | Behaviour                                                                                      |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Zoom below threshold with a data layer on   | Hint "Zoom in to see property lines" / "…public land"; no fetch                                |
+| Zoom below the layer's threshold (13 parcels, 11 public land) | Hint "Zoom in to see property lines" / "…public land"; no fetch                  |
+| Viewport wider than the bbox cap            | Client clamps the request to 1.0° centred on the map; edges may be unpopulated until the user pans |
 | Viewport outside every provider's extent    | Hint "Property lines not available here yet"; no toast                                         |
 | One provider fails, another succeeds        | Draw what succeeded; one toast naming the layer; suppress repeats until the error changes      |
 | Every intersecting provider fails           | 502 from the route; toast "Property lines unavailable right now" (or public-land equivalent); already-drawn features stay |
