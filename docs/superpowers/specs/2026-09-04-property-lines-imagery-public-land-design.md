@@ -98,7 +98,7 @@ interface LayerProvider<T> {
 
 A registry per layer selects every provider whose `extent` intersects the requested bbox, runs them concurrently, and merges the results. A bbox straddling a state line therefore returns both states' parcels. If no provider intersects, the route still succeeds with an empty collection and `meta.uncovered = true`.
 
-A shared helper, `src/lib/server/arcgis.ts`, speaks the ArcGIS REST `query` protocol used by every upstream in this spec: builds the envelope query (`inSR=4326`, `outSR=4326`, `f=geojson`, `geometryPrecision=6`), paginates via `resultOffset` up to a hard page cap, and applies `AbortSignal.timeout`. Pagination continues when **either** the response carries `exceededTransferLimit: true` **or** the page returned exactly the service's `maxRecordCount` — ArcGIS Online emits the flag in GeoJSON output but older ArcGIS Enterprise servers (Nebraska's `gis.ne.gov`) may not. Test fixtures for the helper are captured from each real upstream, not hand-written. Adapters only supply the service URL, the `outFields` list, and a normalization function from raw attributes to the layer's record type.
+A shared helper, `src/lib/server/arcgis.ts`, speaks the ArcGIS REST `query` protocol used by every upstream in this spec: builds the envelope query (`inSR=4326`, `outSR=4326`, `f=geojson`, `geometryPrecision=6`), paginates via `resultOffset` up to a hard page cap, and applies `AbortSignal.timeout`. The helper sends its own page size, `resultRecordCount=2000`, and continues when **either** the response carries `exceededTransferLimit: true` **or** the page returned exactly that many features — ArcGIS Online emits the flag in GeoJSON output but older ArcGIS Enterprise servers (Nebraska's `gis.ne.gov`) may not. Sending the page size ourselves means adapters never need to know an upstream's `maxRecordCount`; the adapter interface stays URL, `outFields`, and normalizer. Test fixtures for the helper are captured from each real upstream, not hand-written. Adapters only supply the service URL, the `outFields` list, and a normalization function from raw attributes to the layer's record type.
 
 ### Route contract (data layers)
 
@@ -157,7 +157,9 @@ The bottom-left hint area is a single slot shared by the existing waypoint hint 
 
 ```ts
 interface Parcel {
-  id: string;                 // provider's parcel id
+  id: string;                 // the assessor's parcel number (NE Parcel_ID, CO parcel_id) — for display
+                              // and county lookup. Deliberately NOT the GeoJSON feature id, which is
+                              // the service OBJECTID and is what the client dedupes on.
   provider: string;           // 'ne-parcels' | 'co-parcels'
   state: 'NE' | 'CO';
   county: string | null;
@@ -214,7 +216,7 @@ Hints and the "not available here yet" message render in the existing bottom-lef
 
 ### Tests
 
-- `arcgis.spec.ts`: builds the expected query URL from a bbox; follows pagination when `exceededTransferLimit` is set; stops at the page cap and reports truncation; classifies a timeout.
+- `arcgis.spec.ts`: builds the expected query URL from a bbox; follows pagination when `exceededTransferLimit` is set; **also** follows pagination when the flag is absent but the page is exactly 2,000 features (the Nebraska path); stops at the page cap and reports truncation; classifies a timeout.
 - `nebraska.spec.ts`, `colorado.spec.ts`: normalize a recorded upstream feature (captured during research) into a `Parcel`; Nebraska yields `owner: null` and treats `"NE"` situs as absent; Colorado joins `owner`/`owner2`.
 - `parcels/index.spec.ts`: registry selects NE only, CO only, both (border bbox), and none (Kansas bbox → `uncovered: true`); one provider failing while another succeeds yields a 200 with `meta.failed`.
 - `api/parcels/server.spec.ts`: bbox parsing rejects malformed input, inverted bounds, and oversized boxes with 400.
@@ -245,8 +247,10 @@ interface PublicLand {
 
 **PAD-US** (`src/lib/server/publicLand/padus.ts`)
 Service: `https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Fee_Managers_PADUS/FeatureServer/0`.
-`outFields`: `Unit_Nm, Mang_Name, Own_Name, Pub_Access`.
+`outFields`: `Unit_Nm, Loc_Mang, Mang_Name, Pub_Access`.
+Mapping: `name` from `Unit_Nm`; `manager` from `Loc_Mang` (the free-text local agency name, e.g. "Nebraska Game and Parks Commission") when non-empty, otherwise the `Mang_Name` **code** (e.g. `SFW`, `BLM`, `USFS`) decoded through the service's 44-entry coded-value domain, shipped as a constant table in `src/lib/server/publicLand/padusCodes.ts`. `Mang_Name` alone is never shown to the user because it is a code, not a name. `Own_Name` is not requested; the record has no owner field.
 Access mapping: `OA → open`, `RA → restricted`, `XA → closed`, anything else → `unknown`. Extent: continental US.
+Note that one named unit can be several polygons with different access codes — Darr Strip Wildlife Management Area near the test location is two features, one `OA` and one `RA`. Each is its own feature with its own `OBJECTID`; they are not merged.
 
 **Nebraska Open Fields and Waters** (`src/lib/server/publicLand/nebraskaOfw.ts`)
 Service: the current season's layer under `https://services5.arcgis.com/IOshH1zLrIieqrNk/arcgis/rest/services/` (at research time `OFW_2026_2027_QA_Web_Map_View/FeatureServer/0`). The season-specific service name lives in one constant, `NE_OFW_SERVICE`, in `src/lib/constants.ts` beside `CDL_MAX_YEAR`, because it changes every year exactly the way the CDL year does.
@@ -284,7 +288,8 @@ A **Public Land** checkbox in `MapLayers.svelte`. State `showPublicLand: boolean
 - `nebraskaOfw.spec.ts`: normalizes a recorded feature; access is always `open`.
 - `publicLand/index.spec.ts`: registry returns PAD-US alone outside Nebraska and both inside.
 - `Legend` test: public-land swatches appear only when the layer is on and use the shared constant.
-- Live at the test location, zoom 12 (above the layer's threshold of 11), Public Land on: Darr Strip Wildlife Management Area renders green; clicking it names the unit and "Nebraska Game and Parks" and leaves the search marker where it was; at least one Open Fields tract renders within the 25 mi box; zooming out to 10 shows the public-land zoom hint.
+- `padus.spec.ts` also covers manager resolution: `Loc_Mang` wins when present; an empty `Loc_Mang` falls back to the decoded code; an unknown code falls back to the raw code string.
+- Live at the test location, zoom 12 (above the layer's threshold of 11), Public Land on: Darr Strip Wildlife Management Area renders as two polygons, one green (open) and one amber (restricted); clicking either names the unit and "Nebraska Game and Parks Commission" and leaves the search marker where it was; at least one Open Fields tract renders within the 25 mi box; zooming out to 10 shows the public-land zoom hint.
 
 ---
 
