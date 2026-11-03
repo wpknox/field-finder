@@ -38,7 +38,11 @@
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
 	let loadingMessage = $state('');
 	let loading = $derived(loadingMessage !== '');
-	let searchResult = $state<SearchResult | null>(null);
+	// $state.raw: a SearchResult is an immutable snapshot that is only ever
+	// replaced, never mutated, so there is no reason to deep-proxy it (or the
+	// multi-megabyte base64 string inside). Reassignment still triggers MapView's
+	// overlay effect, and identity comparisons stay plain object identity.
+	let searchResult = $state.raw<SearchResult | null>(null);
 	let overlayOpacity = $state(0.7);
 	let cropStats = $state<CropStat[]>([]);
 	// Colormap of the currently rendered raster, lifted out of MapView so the
@@ -171,6 +175,7 @@
 							radius: searchRadius,
 							year: searchYear
 						};
+						loadingMessage = 'Rendering crop overlay...';
 						handedOffToMap = true;
 					} else if (event.type === 'error') {
 						errorMessage = event.message || "Couldn't fetch crop data — try again";
@@ -180,12 +185,29 @@
 		} catch {
 			errorMessage = "Couldn't fetch crop data — try again";
 		} finally {
+			// Once a result is handed to MapView, the page keeps showing
+			// "Rendering crop overlay..." until MapView reports back through
+			// handleRenderComplete / handleRenderError.
 			if (!handedOffToMap) {
 				loadingMessage = '';
 			}
-			// If handedOffToMap is true, MapView manages loadingMessage
-			// from here — it will clear it when GeoTIFF rendering finishes
 		}
+	}
+
+	// MapView reports how rendering a search result went. The page is the only
+	// writer of loadingMessage (audit F4). MapView cancels superseded runs, so a
+	// report about a stale result should never arrive. The identity guard is
+	// defense in depth: a newer search owns the message, and a stale report must
+	// not clear it.
+	function handleRenderComplete(result: SearchResult) {
+		if (result !== searchResult) return;
+		loadingMessage = '';
+	}
+
+	function handleRenderError(result: SearchResult) {
+		if (result !== searchResult) return;
+		loadingMessage = '';
+		errorMessage = 'Failed to render crop overlay';
 	}
 </script>
 
@@ -211,13 +233,15 @@
 			{radius}
 			{searchResult}
 			{overlayOpacity}
-			bind:loadingMessage
+			{loadingMessage}
 			{panVersion}
 			bind:errorMessage
 			bind:waypoints
 			bind:cropStats
 			bind:cropPalette
 			onMapClick={handleMapClick}
+			onRenderComplete={handleRenderComplete}
+			onRenderError={handleRenderError}
 		/>
 	</main>
 </div>
