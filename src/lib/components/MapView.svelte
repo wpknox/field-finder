@@ -10,6 +10,7 @@
 	import { rasterToDataUrl } from '$lib/renderGeoraster';
 	import type { SearchResult } from '$lib/searchResult';
 	import { startOverlayRun } from '$lib/overlayRun';
+	import { isTiff, withTimeout, RASTER_PARSE_TIMEOUT_MS } from '$lib/rasterGuards';
 
 	// Two sources of center/radius live here, and they are NOT interchangeable:
 	//   • live `center` / `radius` — drive the marker and the bbox preview rectangle,
@@ -194,8 +195,19 @@
 			bytes[i] = binaryStr.charCodeAt(i);
 		}
 
+		// A non-TIFF (e.g. an HTML error page served in place of the raster) would
+		// hang georaster's Web Worker forever — reject it up front. See rasterGuards.ts.
+		if (!isTiff(bytes)) {
+			throw new Error('Search result is not a GeoTIFF');
+		}
+
 		const parseGeoraster = await import('georaster').then((m) => m.default);
-		const georaster = await parseGeoraster(bytes.buffer);
+		// Backstop for any other parse that never settles (same worker issue).
+		const georaster = await withTimeout(
+			parseGeoraster(bytes.buffer),
+			RASTER_PARSE_TIMEOUT_MS,
+			'Timed out parsing the crop raster'
+		);
 
 		// CDL value 0 is background, but georaster.noDataValue is null and
 		// palette[0] is opaque black — so null must be normalized to 0, or
