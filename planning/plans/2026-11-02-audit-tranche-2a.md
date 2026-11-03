@@ -768,6 +768,237 @@ git commit -m "fix: overlay effect cancels superseded renders; page is sole owne
 
 ---
 
+## Task 3b: A non-TIFF or hung parse must fail, not hang (found in Task 4, added 2026-11-02)
+
+**Why this task exists.** The live check in Task 4d stubbed a `done` event whose payload was `btoa('not a tif')`. The app stuck on "Rendering crop overlay…" forever, with Search disabled.
+
+**Root cause** (confirmed in `node_modules/georaster/src/index.js:115-146`, georaster 1.6.0). In the browser, georaster parses in a Web Worker. It sets `worker.onmessage` and never sets `worker.onerror`. When the worker throws (console: `TypeError: Invalid byte order value` from a `blob:` worker), the `parseGeoraster()` promise never settles. So `renderSearchResult` never rejects, `startOverlayRun` never calls `onError`, and the page never clears `loadingMessage`.
+
+This is not a regression: `main` awaits the same promise with no timeout. It is realistic, because the flaky USDA service could hand back an HTML/XML error page where the raster should be. wpknox chose to fix it in this branch.
+
+**Fix: two guards, both in a new pure module so they are unit-testable in Node.**
+
+1. **`isTiff(bytes)`.** Check the TIFF magic number before parsing:
+   - `II*\0` (49 49 2A 00), little-endian classic TIFF;
+   - `MM\0*` (4D 4D 00 2A), big-endian classic TIFF;
+   - the BigTIFF variants with 0x2B in place of 0x2A.
+
+   A non-TIFF then fails instantly with a clear error.
+
+2. **`withTimeout(promise, ms, message)`.** A backstop, so that _any_ parse that never settles rejects after `RASTER_PARSE_TIMEOUT_MS = 60_000`. That is generous: a 50-mile raster parses in seconds. The timer is cleared when the promise settles, so nothing leaks.
+
+Both errors flow through the existing path:
+
+`renderSearchResult` rejects → `startOverlayRun` → `onError` → `onRenderError` → the page sets the "Failed to render crop overlay" toast and clears loading.
+
+**Files:**
+
+- Create: `src/lib/rasterGuards.ts`
+- Create: `src/lib/rasterGuards.spec.ts`
+- Modify: `src/lib/components/MapView.svelte` (imports; `renderSearchResult`)
+
+- [ ] **Step 1: Write the failing tests** — create `src/lib/rasterGuards.spec.ts`:
+
+```ts
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isTiff, withTimeout, RASTER_PARSE_TIMEOUT_MS } from './rasterGuards';
+
+const bytes = (...b: number[]) => new Uint8Array(b);
+const ascii = (s: string) => new TextEncoder().encode(s);
+
+describe('isTiff', () => {
+	it('accepts little-endian TIFF (II*\\0)', () => {
+		expect(isTiff(bytes(0x49, 0x49, 0x2a, 0x00, 0x08, 0x00))).toBe(true);
+	});
+
+	it('accepts big-endian TIFF (MM\\0*)', () => {
+		expect(isTiff(bytes(0x4d, 0x4d, 0x00, 0x2a, 0x00, 0x08))).toBe(true);
+	});
+
+	it('accepts BigTIFF in both byte orders', () => {
+		expect(isTiff(bytes(0x49, 0x49, 0x2b, 0x00))).toBe(true);
+		expect(isTiff(bytes(0x4d, 0x4d, 0x00, 0x2b))).toBe(true);
+	});
+
+	// What a misbehaving upstream actually returns in place of a raster.
+	it('rejects HTML, XML, and plain text', () => {
+		expect(isTiff(ascii('<!DOCTYPE html><html>'))).toBe(false);
+		expect(isTiff(ascii('<?xml version="1.0"?>'))).toBe(false);
+		expect(isTiff(ascii('not a tif'))).toBe(false);
+	});
+
+	it('rejects input shorter than the 4-byte header', () => {
+		expect(isTiff(bytes())).toBe(false);
+		expect(isTiff(bytes(0x49, 0x49, 0x2a))).toBe(false);
+	});
+
+	it('rejects a mixed byte-order marker', () => {
+		expect(isTiff(bytes(0x49, 0x4d, 0x2a, 0x00))).toBe(false);
+	});
+});
+
+describe('withTimeout', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('resolves with the value when the promise settles in time', async () => {
+		await expect(withTimeout(Promise.resolve('ok'), 1000, 'too slow')).resolves.toBe('ok');
+	});
+
+	it('passes through a rejection from the promise', async () => {
+		const failure = new Error('bad');
+		await expect(withTimeout(Promise.reject(failure), 1000, 'too slow')).rejects.toBe(failure);
+	});
+
+	// The georaster Web Worker case: a promise that never settles.
+	it('rejects with the given message when the promise never settles', async () => {
+		vi.useFakeTimers();
+		const pending = withTimeout(new Promise<never>(() => {}), 5000, 'Raster parse timed out');
+		const assertion = expect(pending).rejects.toThrow('Raster parse timed out');
+		await vi.advanceTimersByTimeAsync(5000);
+		await assertion;
+	});
+
+	it('does not reject before the timeout elapses', async () => {
+		vi.useFakeTimers();
+		let settled = false;
+		withTimeout(new Promise<never>(() => {}), 5000, 'x').catch(() => {
+			settled = true;
+		});
+		await vi.advanceTimersByTimeAsync(4999);
+		expect(settled).toBe(false);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(settled).toBe(true);
+	});
+
+	it('clears its timer once the promise settles', async () => {
+		vi.useFakeTimers();
+		await withTimeout(Promise.resolve(1), 5000, 'x');
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it('defaults to a generous parse timeout', () => {
+		expect(RASTER_PARSE_TIMEOUT_MS).toBe(60_000);
+	});
+});
+```
+
+- [ ] **Step 2: Run, confirm failure**
+
+```bash
+npx vitest run src/lib/rasterGuards.spec.ts 2>&1 | tail -5
+```
+
+Expected: FAIL. The suite cannot import `./rasterGuards`. Observe this with the module genuinely absent: write the spec first and the implementation second.
+
+- [ ] **Step 3: Implement `src/lib/rasterGuards.ts`**
+
+```ts
+/**
+ * Guards around parsing a CDL raster in the browser.
+ *
+ * georaster 1.6.0 parses in a Web Worker and never listens for worker errors
+ * (node_modules/georaster/src/index.js sets onmessage, not onerror). A payload
+ * the worker cannot parse therefore produces a promise that NEVER settles, and
+ * the app would sit on "Rendering crop overlay…" forever. These guards turn
+ * both failure shapes into ordinary rejections that the overlay run reports.
+ */
+
+/** Generous: a 50-mile raster parses in seconds. Only a hung parse hits this. */
+export const RASTER_PARSE_TIMEOUT_MS = 60_000;
+
+/**
+ * True when `bytes` starts with a TIFF or BigTIFF header: byte-order mark
+ * `II` (little-endian) or `MM` (big-endian), then magic 42 (TIFF) or 43
+ * (BigTIFF) in that byte order. Catches an HTML/XML error page served in
+ * place of a raster before it ever reaches the worker.
+ */
+export function isTiff(bytes: Uint8Array): boolean {
+	if (bytes.length < 4) return false;
+	const [a, b, c, d] = bytes;
+	if (a === 0x49 && b === 0x49) return d === 0x00 && (c === 0x2a || c === 0x2b);
+	if (a === 0x4d && b === 0x4d) return c === 0x00 && (d === 0x2a || d === 0x2b);
+	return false;
+}
+
+/**
+ * Reject with `message` if `promise` has not settled within `ms`. The timer is
+ * cleared as soon as the promise settles either way.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new Error(message)), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+```
+
+- [ ] **Step 4: Run, confirm green**
+
+```bash
+npx vitest run src/lib/rasterGuards.spec.ts 2>&1 | grep -E 'Tests '   # expect: 12 passed (12)
+```
+
+Note on the `_` in `new Promise<never>((_, reject) => …)`: `@typescript-eslint/no-unused-vars` defaults to `args: 'after-used'`, which allows an unused parameter that comes before a used one. It should therefore lint clean. If lint fails on it anyway, make the smallest fix and report exactly what you changed.
+
+- [ ] **Step 5: Use both guards in `renderSearchResult`** (`src/lib/components/MapView.svelte`)
+
+Add the import beside the other `$lib` imports:
+
+```ts
+import { isTiff, withTimeout, RASTER_PARSE_TIMEOUT_MS } from '$lib/rasterGuards';
+```
+
+In `renderSearchResult`, between the byte-decoding loop and the georaster import, insert the magic-number check. Then wrap the parse in the timeout. The two existing lines
+
+```ts
+const parseGeoraster = await import('georaster').then((m) => m.default);
+const georaster = await parseGeoraster(bytes.buffer);
+```
+
+become:
+
+```ts
+// A non-TIFF (e.g. an HTML error page served in place of the raster) would
+// hang georaster's Web Worker forever — reject it up front. See rasterGuards.ts.
+if (!isTiff(bytes)) {
+	throw new Error('Search result is not a GeoTIFF');
+}
+
+const parseGeoraster = await import('georaster').then((m) => m.default);
+// Backstop for any other parse that never settles (same worker issue).
+const georaster = await withTimeout(
+	parseGeoraster(bytes.buffer),
+	RASTER_PARSE_TIMEOUT_MS,
+	'Timed out parsing the crop raster'
+);
+```
+
+Change nothing else in MapView.
+
+- [ ] **Step 6: Static checks**
+
+```bash
+npx prettier --write src/lib/rasterGuards.ts src/lib/rasterGuards.spec.ts src/lib/components/MapView.svelte >/dev/null
+npm test 2>&1 | grep -E 'Tests '      # expect: 87 passed (87)   (75 + 12)
+npm run check 2>&1 | tail -1          # expect: 0 ERRORS 0 WARNINGS
+npm run lint >/dev/null 2>&1; echo $? # expect: 0
+npm run build 2>&1 | tail -1          # expect: ✔ done
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/lib/rasterGuards.ts src/lib/rasterGuards.spec.ts src/lib/components/MapView.svelte
+git commit -m "fix: reject non-TIFF payloads and time out hung raster parses instead of hanging"
+```
+
+The orchestrator re-runs live check 4d afterwards. Expected: the "Failed to render crop overlay" toast, Search re-enabled, no layer.
+
+---
+
 ## Task 4: Live verification (browser, Playwright MCP)
 
 **Files:** none. This task only produces evidence, which is recorded in the PR body and the audit markers.
@@ -850,6 +1081,8 @@ The state probe used after each step:
   - `searchDisabled: false`.
 
   Then drag the opacity slider, or set it via `browser_evaluate`: set the range input's `value`, then dispatch `new Event('input', { bubbles: true })`. It must bubble because Svelte 5 delegates `oninput` to the root. Then confirm the single `img.leaflet-image-layer` `style.opacity` changes. That proves `overlay` is still assigned for the opacity effect.
+
+> **Lesson from the 2026-11-02 run (use this instead of the synthetic TIFF for 4c):** pasting ~1.7 KB of base64 into a `browser_evaluate` call got corrupted in transcription (`atob` threw `InvalidCharacterError`), so every run took the error path instead. The better technique is to **capture a real raster**. Wrap `window.fetch` so `/api/search` responses are `tee()`d, parse the `done` event, and store `window.__realTif`. Then stub two `done` events with that ~1 MB payload. A real raster takes ~700 ms to render, so the second result really does land mid-parse, which is the true F1 race. A 16×16 raster finishes inside the 40 ms gap and so cannot exercise it.
 
 - [ ] **4c. Two results back to back — the F1 shape, through the real app (no CDL needed).** Stub `/api/search` to stream two `done` events 40 ms apart, using the synthetic GeoTIFF. Generate its base64 first:
 
