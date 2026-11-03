@@ -70,6 +70,7 @@ describe('startOverlayRun', () => {
 		expect(deps.createLayer).not.toHaveBeenCalled();
 		expect(deps.attach).not.toHaveBeenCalled();
 		expect(deps.onComplete).not.toHaveBeenCalled();
+		expect(deps.detach).not.toHaveBeenCalled();
 		expect(deps.onError).not.toHaveBeenCalled();
 	});
 
@@ -86,6 +87,7 @@ describe('startOverlayRun', () => {
 
 		expect(deps.attach).not.toHaveBeenCalled();
 		expect(deps.onComplete).not.toHaveBeenCalled();
+		expect(deps.detach).not.toHaveBeenCalled();
 	});
 
 	it('removes its own layer when cancelled after attaching', async () => {
@@ -120,6 +122,20 @@ describe('startOverlayRun', () => {
 
 		const run = startOverlayRun(RESULT, deps);
 		rendered.reject(failure);
+		await run.finished;
+
+		expect(deps.onError).toHaveBeenCalledExactlyOnceWith(failure);
+		expect(deps.attach).not.toHaveBeenCalled();
+		expect(deps.onComplete).not.toHaveBeenCalled();
+	});
+
+	it('reports a layer-creation failure and attaches nothing', async () => {
+		const { deps, rendered, created } = makeDeps();
+		const failure = new Error('chunk load failed');
+
+		const run = startOverlayRun(RESULT, deps);
+		rendered.resolve('png-data');
+		created.reject(failure);
 		await run.finished;
 
 		expect(deps.onError).toHaveBeenCalledExactlyOnceWith(failure);

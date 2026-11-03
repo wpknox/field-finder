@@ -3,6 +3,7 @@ import type { SearchResult } from './searchResult';
 /**
  * Everything slow or side-effecting that one overlay render needs, injected so
  * the cancellation logic below can be unit-tested without Leaflet or georaster.
+ * Callbacks must not throw; a throw from `onComplete` is reported to `onError`.
  */
 export interface OverlayRunDeps<Rendered, Layer> {
 	/** Decode, parse, and paint the raster. Slow — seconds for a large search. */
@@ -25,7 +26,7 @@ export interface OverlayRun {
 	 * already attached removes its layer. Safe to call more than once.
 	 */
 	cancel(): void;
-	/** Settles when the run completes, fails, or notices it was cancelled. Never rejects. */
+	/** Settles when the run completes, fails, or notices it was cancelled. Never rejects unless `onError` itself throws. */
 	finished: Promise<void>;
 }
 
