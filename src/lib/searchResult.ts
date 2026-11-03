@@ -1,9 +1,10 @@
 /**
  * A completed CDL search, snapshotted at request time.
  *
- * lat/lon/radius are captured BEFORE the request is sent, so the overlay is
- * always placed over the bbox that was actually searched — even if the user
- * moves the marker or the radius slider while the fetch is in flight.
+ * lat/lon/radius/year are captured BEFORE the request is sent, so the overlay is
+ * always placed over the bbox that was actually searched — and labelled with the
+ * year that was actually fetched — even if the user moves the marker, the radius
+ * slider, or the year dropdown while the fetch is in flight.
  *
  * Every completed search produces a NEW object. That fresh identity is what
  * retriggers MapView's overlay $effect, even when two consecutive searches
@@ -18,4 +19,6 @@ export interface SearchResult {
 	lon: number;
 	/** Search-time radius in miles. */
 	radius: number;
+	/** Search-time CDL year — the year this raster actually shows. */
+	year: number;
 }

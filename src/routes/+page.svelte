@@ -116,11 +116,12 @@
 		let handedOffToMap = false;
 
 		// Snapshot the search parameters up front — the user is free to move the
-		// marker or the radius slider while the multi-second fetch is in flight,
-		// and the overlay must be placed where the search actually happened.
+		// marker, the radius slider, or the year dropdown while the multi-second
+		// fetch is in flight, and the overlay must reflect the search that happened.
 		const searchLat = mapCenter[0];
 		const searchLon = mapCenter[1];
 		const searchRadius = radius;
+		const searchYear = year;
 
 		try {
 			const selectedCropIds = Object.entries(cropFilters)
@@ -134,7 +135,7 @@
 					lat: searchLat,
 					lon: searchLon,
 					radius: searchRadius,
-					year,
+					year: searchYear,
 					crops: selectedCropIds
 				})
 			});
@@ -167,7 +168,8 @@
 							tifBase64: event.tifBase64,
 							lat: searchLat,
 							lon: searchLon,
-							radius: searchRadius
+							radius: searchRadius,
+							year: searchYear
 						};
 						handedOffToMap = true;
 					} else if (event.type === 'error') {
@@ -199,7 +201,7 @@
 		<CropFilter bind:selected={cropFilters} colors={cropColors} />
 		<OpacitySlider bind:opacity={overlayOpacity} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
-		<AreaSummary stats={cropStats} />
+		<AreaSummary stats={cropStats} year={searchResult?.year} />
 	</Sidebar>
 
 	<main class="relative flex-1">
