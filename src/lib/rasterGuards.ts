@@ -6,6 +6,10 @@
  * the worker cannot parse therefore produces a promise that NEVER settles, and
  * the app would sit on "Rendering crop overlay…" forever. These guards turn
  * both failure shapes into ordinary rejections that the overlay run reports.
+ *
+ * The timeout abandons a hung parse; it does not stop it. georaster never calls
+ * `worker.terminate()` (on success or failure), so the worker lives on until
+ * the page unloads. That leak is the library's and is out of scope here.
  */
 
 /** Generous: a 50-mile raster parses in seconds. Only a hung parse hits this. */
