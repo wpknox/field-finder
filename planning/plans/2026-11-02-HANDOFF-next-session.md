@@ -1,7 +1,7 @@
 ---
 id: handoff-2026-11-02
 type: planning
-description: Session handoff — PR #3 merged, dove quick wins in PR #4, audit tranche 2a mid-execution (Tasks 0–3 done and reviewed, 3b in flight, live checks done, docs + PR remaining)
+description: Session handoff — PR #3 merged, dove quick wins in PR #4, audit tranche 2a mid-execution (Tasks 0–3 done and reviewed, 3b committed + spec-reviewed, live checks done, docs + PR remaining)
 related:
   - planning/plans/2026-11-02-audit-tranche-2a.md
   - planning/audit-2026-08-26.md
@@ -44,16 +44,16 @@ related:
 
 ### Tranche 2a progress (plan: `planning/plans/2026-11-02-audit-tranche-2a.md`)
 
-| Task                                      | Commit(s)            | Status                                                                                                                                                                                                                                                                                                              |
-| ----------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan                                      | `0be6831`            | Reviewed twice by a subagent and approved. Task 3b and a Task 4 lesson were added afterwards and committed with this handoff.                                                                                                                                                                                       |
-| 0 Baseline                                | —                    | ✅ 66/66, check 0/0, lint 0                                                                                                                                                                                                                                                                                         |
-| 1 F2 year in `SearchResult`               | `3c84c20`            | ✅ spec ✅ quality ✅                                                                                                                                                                                                                                                                                               |
-| 2 F1 `overlayRun.ts` module               | `5fed348`, `ee2014f` | ✅ spec ✅ quality ✅. Mutation-tested: every guard has a test that fails without it. `ee2014f` added a layer-creation-failure test and corrected a doc comment.                                                                                                                                                    |
-| 3 F1+F4 MapView wiring, page owns loading | `f0ad637`            | ✅ spec ✅ quality ✅. Every loading path was traced; unmount order was checked against the Svelte 5.54 and Leaflet 1.9.4 source.                                                                                                                                                                                   |
-| **3b** non-TIFF / hung-parse guard        | `0c8984a`            | Committed, and independently re-checked by the orchestrator: 87/87, check 0/0, eslint and prettier clean on `src`, build ✔. The implementer's report was empty ("placeholder"). **Spec review was dispatched at handoff time; if its result isn't recorded here, re-run the spec review, then the quality review.** |
-| 4 Live verification                       | —                    | ✅ done except **re-running 4d after 3b** (see the evidence below)                                                                                                                                                                                                                                                  |
-| 5 Docs + wrap-up                          | —                    | Not started                                                                                                                                                                                                                                                                                                         |
+| Task                                      | Commit(s)            | Status                                                                                                                                                                                                                                      |
+| ----------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan                                      | `0be6831`            | Reviewed twice by a subagent and approved. Task 3b and a Task 4 lesson were added afterwards and committed with this handoff.                                                                                                               |
+| 0 Baseline                                | —                    | ✅ 66/66, check 0/0, lint 0                                                                                                                                                                                                                 |
+| 1 F2 year in `SearchResult`               | `3c84c20`            | ✅ spec ✅ quality ✅                                                                                                                                                                                                                       |
+| 2 F1 `overlayRun.ts` module               | `5fed348`, `ee2014f` | ✅ spec ✅ quality ✅. Mutation-tested: every guard has a test that fails without it. `ee2014f` added a layer-creation-failure test and corrected a doc comment.                                                                            |
+| 3 F1+F4 MapView wiring, page owns loading | `f0ad637`            | ✅ spec ✅ quality ✅. Every loading path was traced; unmount order was checked against the Svelte 5.54 and Leaflet 1.9.4 source.                                                                                                           |
+| **3b** non-TIFF / hung-parse guard        | `0c8984a`            | ✅ spec (byte-identical to the plan; 12/12 new tests, 87/87, check 0/0, lint, build ✔). **Code-quality review NOT yet run: do it first.** The implementer's own report was empty ("placeholder"), so everything was verified independently. |
+| 4 Live verification                       | —                    | ✅ done except **re-running 4d after 3b** (see the evidence below)                                                                                                                                                                          |
+| 5 Docs + wrap-up                          | —                    | Not started                                                                                                                                                                                                                                 |
 
 **Test count:** 75 now. It becomes 87 once 3b lands. The plan's Task 3/5 text still says 74 in places; 75/87 are correct.
 
@@ -87,8 +87,8 @@ Test location: 40.553950, −100.076157; radius 10 mi.
 
 ## What to do next, in order
 
-1. **Finish Task 3b** (code is committed as `0c8984a`):
-   - spec review, then quality review;
+1. **Finish Task 3b** (code committed as `0c8984a`; spec review ✅):
+   - code-quality review (subagent, `requesting-code-review/code-reviewer.md`, range `f0ad637..0c8984a`);
    - re-run live check 4d with a dev server on port 5199 and the Playwright MCP — the stub snippet is in the plan's Task 4d;
    - confirm suite 87/87, check 0/0, lint 0, build ✔.
 2. **Task 5 (docs).**
