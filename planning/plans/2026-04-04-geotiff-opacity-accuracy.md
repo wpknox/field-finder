@@ -14,29 +14,29 @@
 
 ### New Files
 
-| File | Responsibility |
-|------|----------------|
-| `src/lib/types/georaster.d.ts` | TypeScript declarations for `georaster` |
-| `src/lib/types/georaster-layer-for-leaflet.d.ts` | TypeScript declarations for `georaster-layer-for-leaflet` |
-| `src/lib/components/OpacitySlider.svelte` | Overlay opacity slider (0%–100%) |
-| `src/lib/cropStats.ts` | Compute crop percentage breakdown from georaster pixel values |
-| `src/lib/cropStats.spec.ts` | Tests for cropStats |
-| `src/lib/components/AreaSummary.svelte` | Sidebar panel showing crop name, color swatch, and % |
-| `src/lib/projections.ts` | Shared EPSG projection string constants (imported by both server and client) |
+| File                                             | Responsibility                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `src/lib/types/georaster.d.ts`                   | TypeScript declarations for `georaster`                                      |
+| `src/lib/types/georaster-layer-for-leaflet.d.ts` | TypeScript declarations for `georaster-layer-for-leaflet`                    |
+| `src/lib/components/OpacitySlider.svelte`        | Overlay opacity slider (0%–100%)                                             |
+| `src/lib/cropStats.ts`                           | Compute crop percentage breakdown from georaster pixel values                |
+| `src/lib/cropStats.spec.ts`                      | Tests for cropStats                                                          |
+| `src/lib/components/AreaSummary.svelte`          | Sidebar panel showing crop name, color swatch, and %                         |
+| `src/lib/projections.ts`                         | Shared EPSG projection string constants (imported by both server and client) |
 
 ### Modified Files
 
-| File | What Changes |
-|------|-------------|
-| `src/lib/server/coordinates.ts` | Import `EPSG_5070` from `$lib/projections` instead of defining it inline |
-| `src/lib/server/cdl.ts` | Remove `GetCDLImage` step from `fetchCdlData`; remove `buildImageUrl`; update `CdlProgressStep` type |
-| `src/lib/server/cdl.spec.ts` | Update tests: fewer API calls, raster URL return instead of PNG URL |
-| `src/routes/api/search/+server.ts` | Fetch `.tif` binary (not PNG), base64-encode, send as `tifBase64` in SSE done event |
+| File                                | What Changes                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/server/coordinates.ts`     | Import `EPSG_5070` from `$lib/projections` instead of defining it inline                                                       |
+| `src/lib/server/cdl.ts`             | Remove `GetCDLImage` step from `fetchCdlData`; remove `buildImageUrl`; update `CdlProgressStep` type                           |
+| `src/lib/server/cdl.spec.ts`        | Update tests: fewer API calls, raster URL return instead of PNG URL                                                            |
+| `src/routes/api/search/+server.ts`  | Fetch `.tif` binary (not PNG), base64-encode, send as `tifBase64` in SSE done event                                            |
 | `src/lib/components/MapView.svelte` | Replace `L.imageOverlay` with `GeoRasterLayer`; add `$state` overlay + opacity `$effect`; `loadingMessage` becomes `$bindable` |
-| `src/routes/+page.svelte` | Replace `overlayUrl`/`overlayBounds` state with `tifBase64`; add `overlayOpacity` state; bind `loadingMessage` to MapView |
-| `src/lib/localStorage.ts` | Add `saveOverlayOpacity` / `getOverlayOpacity` |
-| `src/lib/localStorage.spec.ts` | Test opacity persistence |
-| `package.json` | Add `georaster`, `georaster-layer-for-leaflet` |
+| `src/routes/+page.svelte`           | Replace `overlayUrl`/`overlayBounds` state with `tifBase64`; add `overlayOpacity` state; bind `loadingMessage` to MapView      |
+| `src/lib/localStorage.ts`           | Add `saveOverlayOpacity` / `getOverlayOpacity`                                                                                 |
+| `src/lib/localStorage.spec.ts`      | Test opacity persistence                                                                                                       |
+| `package.json`                      | Add `georaster`, `georaster-layer-for-leaflet`                                                                                 |
 
 ### Removed Code
 
@@ -49,6 +49,7 @@
 ## Task 1: Extract Shared Projection Constants, Install Dependencies, and Type Declarations
 
 **Files:**
+
 - Create: `src/lib/projections.ts`
 - Modify: `src/lib/server/coordinates.ts`
 - Modify: `package.json`
@@ -153,6 +154,7 @@ git commit -m "chore: extract EPSG_5070 to shared module; add georaster and geor
 ## Task 2: Simplify fetchCdlData — Return Raster URL (TDD)
 
 **Files:**
+
 - Modify: `src/lib/server/cdl.spec.ts`
 - Modify: `src/lib/server/cdl.ts`
 
@@ -164,6 +166,7 @@ New pipeline: `GetCDLFile` -> `ExtractCDLByValues` -> raster URL. Skip `GetCDLIm
 Replace the `fetchCdlData` describe block and the `buildImageUrl` test in `src/lib/server/cdl.spec.ts`:
 
 Remove this test entirely:
+
 ```typescript
 it('buildImageUrl constructs correct URL', () => { ... });
 ```
@@ -177,13 +180,11 @@ describe('fetchCdlData', () => {
 			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			});
 
 		const result = await fetchCdlData(
@@ -202,8 +203,7 @@ describe('fetchCdlData', () => {
 	it('returns raster URL directly when no crops filter', async () => {
 		const mockFetch = vi.fn().mockResolvedValueOnce({
 			ok: true,
-			text: async () =>
-				`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+			text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 		});
 
 		const result = await fetchCdlData(
@@ -224,13 +224,11 @@ describe('fetchCdlData', () => {
 			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/raster.tif</returnURL></r>`
 			})
 			.mockResolvedValueOnce({
 				ok: true,
-				text: async () =>
-					`<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
+				text: async () => `<r><returnURL>https://nassgeodata.gmu.edu/filtered.tif</returnURL></r>`
 			});
 
 		const steps: string[] = [];
@@ -264,6 +262,7 @@ Expected: `fetchCdlData` tests FAIL (still returns PNG URL, calls 3 times instea
 In `src/lib/server/cdl.ts`:
 
 1. Remove `buildImageUrl`:
+
 ```typescript
 // DELETE lines 14-16
 export function buildImageUrl(rasterUrl: string): string {
@@ -272,6 +271,7 @@ export function buildImageUrl(rasterUrl: string): string {
 ```
 
 2. Update `CdlProgressStep` — remove `'preparing'`:
+
 ```typescript
 export type CdlProgressStep = 'fetching' | 'extracting';
 ```
@@ -279,20 +279,22 @@ export type CdlProgressStep = 'fetching' | 'extracting';
 3. Remove step 3 from `fetchCdlData` — delete the `GetCDLImage` call and return `rasterUrl` directly:
 
 Replace lines 72-81:
+
 ```typescript
-	// Step 3: Get PNG image
-	onProgress?.('preparing');
-	const imageUrl = buildImageUrl(rasterUrl);
-	const imageResp = await fetchFn(imageUrl);
-	if (!imageResp.ok) {
-		throw new Error(`CDL GetCDLImage failed: ${imageResp.status}`);
-	}
-	return parseReturnUrl(await imageResp.text());
+// Step 3: Get PNG image
+onProgress?.('preparing');
+const imageUrl = buildImageUrl(rasterUrl);
+const imageResp = await fetchFn(imageUrl);
+if (!imageResp.ok) {
+	throw new Error(`CDL GetCDLImage failed: ${imageResp.status}`);
+}
+return parseReturnUrl(await imageResp.text());
 ```
 
 With:
+
 ```typescript
-	return rasterUrl;
+return rasterUrl;
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -315,6 +317,7 @@ git commit -m "refactor: simplify fetchCdlData to return raster URL, skip GetCDL
 ## Task 3: Update /api/search to Send GeoTIFF Binary
 
 **Files:**
+
 - Modify: `src/routes/api/search/+server.ts`
 
 The search endpoint currently fetches a PNG and sends it as base64. Now it fetches the `.tif` raster (the URL returned by `fetchCdlData`) and sends that as base64 instead.
@@ -335,34 +338,33 @@ const PROGRESS_MESSAGES: Record<CdlProgressStep, string> = {
 2. Replace the SSE stream body (lines 52–80) with:
 
 ```typescript
-				const rasterUrl = await fetchCdlData(
-					{ year, albers, crops },
-					fetch,
-					(step) => send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
-				);
+const rasterUrl = await fetchCdlData({ year, albers, crops }, fetch, (step) =>
+	send({ type: 'progress', message: PROGRESS_MESSAGES[step] })
+);
 
-				if (typeof rasterUrl !== 'string' || rasterUrl.trim() === '') {
-					send({ type: 'error', message: 'CDL API returned an invalid raster URL' });
-					return;
-				}
+if (typeof rasterUrl !== 'string' || rasterUrl.trim() === '') {
+	send({ type: 'error', message: 'CDL API returned an invalid raster URL' });
+	return;
+}
 
-				send({ type: 'progress', message: 'Downloading crop data...' });
-				const tifResp = await fetch(rasterUrl);
-				if (!tifResp.ok) {
-					send({
-						type: 'error',
-						message: 'Failed to download crop data from CDL server'
-					});
-					return;
-				}
+send({ type: 'progress', message: 'Downloading crop data...' });
+const tifResp = await fetch(rasterUrl);
+if (!tifResp.ok) {
+	send({
+		type: 'error',
+		message: 'Failed to download crop data from CDL server'
+	});
+	return;
+}
 
-				const tifBuffer = await tifResp.arrayBuffer();
-				const tifBase64 = Buffer.from(tifBuffer).toString('base64');
+const tifBuffer = await tifResp.arrayBuffer();
+const tifBase64 = Buffer.from(tifBuffer).toString('base64');
 
-				send({ type: 'done', tifBase64 });
+send({ type: 'done', tifBase64 });
 ```
 
 Key changes vs. the old code:
+
 - Variable renamed from `pngUrl` to `rasterUrl`
 - Progress message: "Downloading crop data..." instead of "Downloading image..."
 - Done event: `{ type: 'done', tifBase64 }` instead of `{ type: 'done', pngUrl, bounds }`
@@ -388,6 +390,7 @@ git commit -m "feat: send GeoTIFF binary via SSE instead of PNG"
 ## Task 4: Update +page.svelte Client Data Flow
 
 **Files:**
+
 - Modify: `src/routes/+page.svelte`
 
 Replace `overlayUrl` / `overlayBounds` state with `tifBase64`. Handle loading state handoff to MapView.
@@ -397,15 +400,15 @@ Replace `overlayUrl` / `overlayBounds` state with `tifBase64`. Handle loading st
 In `src/routes/+page.svelte`, replace lines 34–35:
 
 ```typescript
-	let overlayUrl = $state('');
-	let overlayBounds = $state<[[number, number], [number, number]] | undefined>(undefined);
+let overlayUrl = $state('');
+let overlayBounds = $state<[[number, number], [number, number]] | undefined>(undefined);
 ```
 
 With:
 
 ```typescript
-	let tifBase64 = $state('');
-	let overlayOpacity = $state(0.7);
+let tifBase64 = $state('');
+let overlayOpacity = $state(0.7);
 ```
 
 - [ ] **Step 2: Add opacity localStorage restore in onMount**
@@ -413,8 +416,8 @@ With:
 After the existing `savedWaypoints` block (around line 60), add:
 
 ```typescript
-		const savedOpacity = getOverlayOpacity(localStorage);
-		if (savedOpacity !== null) overlayOpacity = savedOpacity;
+const savedOpacity = getOverlayOpacity(localStorage);
+if (savedOpacity !== null) overlayOpacity = savedOpacity;
 ```
 
 And add the import at the top (extend the existing import from `$lib/localStorage`):
@@ -432,9 +435,9 @@ import {
 After the existing `saveCropFilters` effect (around line 71), add:
 
 ```typescript
-	$effect(() => {
-		saveOverlayOpacity(overlayOpacity, localStorage);
-	});
+$effect(() => {
+	saveOverlayOpacity(overlayOpacity, localStorage);
+});
 ```
 
 - [ ] **Step 4: Update handleSearch to read tifBase64 from SSE done event**
@@ -442,66 +445,66 @@ After the existing `saveCropFilters` effect (around line 71), add:
 Replace the SSE handling in `handleSearch` (lines 92–148):
 
 ```typescript
-	async function handleSearch() {
-		if (!hasLocation) return;
+async function handleSearch() {
+	if (!hasLocation) return;
 
-		loadingMessage = 'Starting...';
-		errorMessage = '';
-		let handedOffToMap = false;
+	loadingMessage = 'Starting...';
+	errorMessage = '';
+	let handedOffToMap = false;
 
-		try {
-			const selectedCropIds = Object.entries(cropFilters)
-				.filter(([, checked]) => checked)
-				.map(([key]) => CROPS[key as CropKey].id);
+	try {
+		const selectedCropIds = Object.entries(cropFilters)
+			.filter(([, checked]) => checked)
+			.map(([key]) => CROPS[key as CropKey].id);
 
-			const resp = await fetch('/api/search', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					lat: mapCenter[0],
-					lon: mapCenter[1],
-					radius,
-					year,
-					crops: selectedCropIds
-				})
-			});
+		const resp = await fetch('/api/search', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				lat: mapCenter[0],
+				lon: mapCenter[1],
+				radius,
+				year,
+				crops: selectedCropIds
+			})
+		});
 
-			if (!resp.ok || !resp.body) {
-				errorMessage = "Couldn't fetch crop data — try again";
-				return;
-			}
+		if (!resp.ok || !resp.body) {
+			errorMessage = "Couldn't fetch crop data — try again";
+			return;
+		}
 
-			const reader = resp.body.getReader();
-			const decoder = new TextDecoder();
+		const reader = resp.body.getReader();
+		const decoder = new TextDecoder();
 
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
 
-				for (const line of decoder.decode(value).split('\n')) {
-					if (!line.startsWith('data: ')) continue;
-					const event = JSON.parse(line.slice(6));
+			for (const line of decoder.decode(value).split('\n')) {
+				if (!line.startsWith('data: ')) continue;
+				const event = JSON.parse(line.slice(6));
 
-					if (event.type === 'progress') {
-						loadingMessage = event.message;
-					} else if (event.type === 'done') {
-						tifBase64 = event.tifBase64;
-						handedOffToMap = true;
-					} else if (event.type === 'error') {
-						errorMessage = event.message || "Couldn't fetch crop data — try again";
-					}
+				if (event.type === 'progress') {
+					loadingMessage = event.message;
+				} else if (event.type === 'done') {
+					tifBase64 = event.tifBase64;
+					handedOffToMap = true;
+				} else if (event.type === 'error') {
+					errorMessage = event.message || "Couldn't fetch crop data — try again";
 				}
 			}
-		} catch {
-			errorMessage = "Couldn't fetch crop data — try again";
-		} finally {
-			if (!handedOffToMap) {
-				loadingMessage = '';
-			}
-			// If handedOffToMap is true, MapView manages loadingMessage
-			// from here — it will clear it when GeoTIFF rendering finishes
 		}
+	} catch {
+		errorMessage = "Couldn't fetch crop data — try again";
+	} finally {
+		if (!handedOffToMap) {
+			loadingMessage = '';
+		}
+		// If handedOffToMap is true, MapView manages loadingMessage
+		// from here — it will clear it when GeoTIFF rendering finishes
 	}
+}
 ```
 
 Key change: `handedOffToMap` flag prevents clearing `loadingMessage` in `finally` when the done event was received. MapView takes over loading state during GeoTIFF rendering.
@@ -511,21 +514,22 @@ Key change: `handedOffToMap` flag prevents clearing `loadingMessage` in `finally
 Replace the `<MapView>` block (lines 165–176):
 
 ```svelte
-		<MapView
-			bind:center={mapCenter}
-			zoom={mapZoom}
-			{radius}
-			{tifBase64}
-			{overlayOpacity}
-			bind:loadingMessage
-			{panVersion}
-			bind:errorMessage
-			bind:waypoints
-			onMapClick={handleMapClick}
-		/>
+<MapView
+	bind:center={mapCenter}
+	zoom={mapZoom}
+	{radius}
+	{tifBase64}
+	{overlayOpacity}
+	bind:loadingMessage
+	{panVersion}
+	bind:errorMessage
+	bind:waypoints
+	onMapClick={handleMapClick}
+/>
 ```
 
 Changes:
+
 - `{overlayUrl}` and `{overlayBounds}` removed
 - `{tifBase64}` and `{overlayOpacity}` added
 - `{loadingMessage}` changed to `bind:loadingMessage` (bidirectional — MapView can set it)
@@ -533,13 +537,15 @@ Changes:
 - [ ] **Step 6: Add OpacitySlider to the sidebar**
 
 Add the import:
+
 ```typescript
 import OpacitySlider from '$lib/components/OpacitySlider.svelte';
 ```
 
 Add `<OpacitySlider>` in the sidebar, after `<CropFilter>` and before `<SearchButton>`:
+
 ```svelte
-		<OpacitySlider bind:opacity={overlayOpacity} />
+<OpacitySlider bind:opacity={overlayOpacity} />
 ```
 
 - [ ] **Step 7: Verify build compiles**
@@ -562,11 +568,13 @@ git commit -m "feat: update page state model for GeoTIFF overlay and opacity con
 ## Task 5: Replace imageOverlay with GeoRasterLayer in MapView
 
 **Files:**
+
 - Modify: `src/lib/components/MapView.svelte`
 
 This is the core change. Replace the Leaflet `imageOverlay` with `georaster` + `georaster-layer-for-leaflet`.
 
 **Key design decisions:**
+
 - `overlay` becomes `$state` so the opacity `$effect` can track it
 - Main overlay `$effect` uses `untrack` to read `overlay` (for cleanup) without making it a dependency
 - `overlayOpacity` is read via `untrack` in the main `$effect` for initial value; a separate `$effect` handles reactive opacity updates
@@ -587,32 +595,33 @@ import { onMount, untrack } from 'svelte';
 Replace the props block (lines 9–31) with:
 
 ```typescript
-	let {
-		center = $bindable<[number, number]>([39.8, -98.5]),
-		zoom = 5,
-		radius = 10,
-		tifBase64 = '',
-		overlayOpacity = 0.7,
-		loadingMessage = $bindable(''),
-		panVersion = 0,
-		errorMessage = $bindable(''),
-		waypoints = $bindable<Waypoint[]>([]),
-		onMapClick
-	}: {
-		center?: [number, number];
-		zoom?: number;
-		radius?: number;
-		tifBase64?: string;
-		overlayOpacity?: number;
-		loadingMessage?: string;
-		panVersion?: number;
-		errorMessage?: string;
-		waypoints?: Waypoint[];
-		onMapClick?: (lat: number, lon: number) => void;
-	} = $props();
+let {
+	center = $bindable<[number, number]>([39.8, -98.5]),
+	zoom = 5,
+	radius = 10,
+	tifBase64 = '',
+	overlayOpacity = 0.7,
+	loadingMessage = $bindable(''),
+	panVersion = 0,
+	errorMessage = $bindable(''),
+	waypoints = $bindable<Waypoint[]>([]),
+	onMapClick
+}: {
+	center?: [number, number];
+	zoom?: number;
+	radius?: number;
+	tifBase64?: string;
+	overlayOpacity?: number;
+	loadingMessage?: string;
+	panVersion?: number;
+	errorMessage?: string;
+	waypoints?: Waypoint[];
+	onMapClick?: (lat: number, lon: number) => void;
+} = $props();
 ```
 
 Changes:
+
 - `overlayUrl` and `overlayBounds` removed
 - `tifBase64` and `overlayOpacity` added
 - `loadingMessage` changed from read-only to `$bindable`
@@ -620,13 +629,15 @@ Changes:
 - [ ] **Step 3: Update the overlay variable type**
 
 Replace line 39:
+
 ```typescript
-	let overlay: import('leaflet').ImageOverlay | undefined;
+let overlay: import('leaflet').ImageOverlay | undefined;
 ```
 
 With:
+
 ```typescript
-	let overlay = $state<import('leaflet').GridLayer | undefined>(undefined);
+let overlay = $state<import('leaflet').GridLayer | undefined>(undefined);
 ```
 
 `$state` so the opacity `$effect` can react when it's set. `GridLayer` because `GeoRasterLayer` extends it.
@@ -636,97 +647,96 @@ With:
 Replace the existing crop overlay effect (lines 152–166):
 
 ```typescript
-	// Crop overlay — replaces previous overlay when overlayUrl/overlayBounds change
-	$effect(() => {
-		if (!mapReady || !map || !overlayUrl || !overlayBounds) return;
-		if (overlay) {
-			overlay.remove();
-		}
-		import('leaflet').then((L) => {
-			overlay = L.imageOverlay(overlayUrl, overlayBounds!).addTo(
-				map!
-			);
-			overlay.on('error', () => {
-				errorMessage = 'Failed to load crop image — the data may not be available for this area';
-			});
+// Crop overlay — replaces previous overlay when overlayUrl/overlayBounds change
+$effect(() => {
+	if (!mapReady || !map || !overlayUrl || !overlayBounds) return;
+	if (overlay) {
+		overlay.remove();
+	}
+	import('leaflet').then((L) => {
+		overlay = L.imageOverlay(overlayUrl, overlayBounds!).addTo(map!);
+		overlay.on('error', () => {
+			errorMessage = 'Failed to load crop image — the data may not be available for this area';
 		});
 	});
+});
 ```
 
 With:
 
 ```typescript
-	// GeoTIFF overlay — decode, parse, and render when tifBase64 changes.
-	// Uses $state overlay so the opacity $effect can track it.
-	// Reads overlay and overlayOpacity via untrack() to avoid making them dependencies.
-	$effect(() => {
-		if (!mapReady || !map || !tifBase64) return;
+// GeoTIFF overlay — decode, parse, and render when tifBase64 changes.
+// Uses $state overlay so the opacity $effect can track it.
+// Reads overlay and overlayOpacity via untrack() to avoid making them dependencies.
+$effect(() => {
+	if (!mapReady || !map || !tifBase64) return;
 
-		// Remove old overlay without tracking it as a dependency
-		const oldOverlay = untrack(() => overlay);
-		if (oldOverlay) {
-			map!.removeLayer(oldOverlay);
-			overlay = undefined;
-		}
+	// Remove old overlay without tracking it as a dependency
+	const oldOverlay = untrack(() => overlay);
+	if (oldOverlay) {
+		map!.removeLayer(oldOverlay);
+		overlay = undefined;
+	}
 
-		const currentTif = tifBase64;
+	const currentTif = tifBase64;
 
-		(async () => {
-			try {
-				loadingMessage = 'Rendering crop overlay...';
+	(async () => {
+		try {
+			loadingMessage = 'Rendering crop overlay...';
 
-				// Decode base64 to ArrayBuffer
-				const binaryStr = atob(currentTif);
-				const bytes = new Uint8Array(binaryStr.length);
-				for (let i = 0; i < binaryStr.length; i++) {
-					bytes[i] = binaryStr.charCodeAt(i);
-				}
-
-				// Dynamic imports (SSR safety + code splitting)
-				const [parseGeoraster, GeoRasterLayer, proj4] = await Promise.all([
-					import('georaster').then((m) => m.default),
-					import('georaster-layer-for-leaflet').then((m) => m.default),
-					import('proj4').then((m) => m.default)
-				]);
-
-				// Register EPSG:5070 for CDL raster reprojection
-				const { EPSG_5070 } = await import('$lib/projections');
-				proj4.defs('EPSG:5070', EPSG_5070);
-
-				const georaster = await parseGeoraster(bytes.buffer);
-
-				// Stale check — abort if a newer search arrived while parsing
-				if (tifBase64 !== currentTif) return;
-
-				const initialOpacity = untrack(() => overlayOpacity);
-				const layer = new GeoRasterLayer({
-					georaster,
-					opacity: initialOpacity,
-					resolution: 256,
-					proj4
-				});
-				layer.addTo(map!);
-				overlay = layer;
-				loadingMessage = '';
-			} catch (err) {
-				console.error('GeoTIFF rendering error:', err);
-				if (tifBase64 === currentTif) {
-					loadingMessage = '';
-					errorMessage = 'Failed to render crop overlay';
-				}
+			// Decode base64 to ArrayBuffer
+			const binaryStr = atob(currentTif);
+			const bytes = new Uint8Array(binaryStr.length);
+			for (let i = 0; i < binaryStr.length; i++) {
+				bytes[i] = binaryStr.charCodeAt(i);
 			}
-		})();
-	});
 
-	// Opacity — reactively update when the slider changes, without re-parsing the GeoTIFF
-	$effect(() => {
-		if (overlay) {
-			overlay.setOpacity(overlayOpacity);
+			// Dynamic imports (SSR safety + code splitting)
+			const [parseGeoraster, GeoRasterLayer, proj4] = await Promise.all([
+				import('georaster').then((m) => m.default),
+				import('georaster-layer-for-leaflet').then((m) => m.default),
+				import('proj4').then((m) => m.default)
+			]);
+
+			// Register EPSG:5070 for CDL raster reprojection
+			const { EPSG_5070 } = await import('$lib/projections');
+			proj4.defs('EPSG:5070', EPSG_5070);
+
+			const georaster = await parseGeoraster(bytes.buffer);
+
+			// Stale check — abort if a newer search arrived while parsing
+			if (tifBase64 !== currentTif) return;
+
+			const initialOpacity = untrack(() => overlayOpacity);
+			const layer = new GeoRasterLayer({
+				georaster,
+				opacity: initialOpacity,
+				resolution: 256,
+				proj4
+			});
+			layer.addTo(map!);
+			overlay = layer;
+			loadingMessage = '';
+		} catch (err) {
+			console.error('GeoTIFF rendering error:', err);
+			if (tifBase64 === currentTif) {
+				loadingMessage = '';
+				errorMessage = 'Failed to render crop overlay';
+			}
 		}
-	});
+	})();
+});
+
+// Opacity — reactively update when the slider changes, without re-parsing the GeoTIFF
+$effect(() => {
+	if (overlay) {
+		overlay.setOpacity(overlayOpacity);
+	}
+});
 ```
 
 **Why two $effects:**
+
 - The main $effect tracks only `mapReady`, `map`, and `tifBase64`. Changing opacity does NOT trigger re-parsing.
 - The opacity $effect tracks `overlay` ($state) and `overlayOpacity`. When the user drags the slider, it calls `setOpacity()` — instant, no flicker.
 - The main $effect reads `overlay` and `overlayOpacity` via `untrack()` to avoid making them dependencies.
@@ -738,8 +748,11 @@ npm run check
 ```
 
 Expected: Should compile. If `georaster-layer-for-leaflet` has Vite resolution issues, add to `vite.config.ts`:
+
 ```typescript
-optimizeDeps: { include: ['georaster', 'georaster-layer-for-leaflet'] }
+optimizeDeps: {
+	include: ['georaster', 'georaster-layer-for-leaflet'];
+}
 ```
 
 - [ ] **Step 6: Commit**
@@ -754,6 +767,7 @@ git commit -m "feat: replace PNG imageOverlay with GeoRasterLayer for zoom-indep
 ## Task 6: Opacity Slider with localStorage Persistence (TDD)
 
 **Files:**
+
 - Modify: `src/lib/localStorage.ts`
 - Modify: `src/lib/localStorage.spec.ts`
 - Create: `src/lib/components/OpacitySlider.svelte`
@@ -763,17 +777,18 @@ git commit -m "feat: replace PNG imageOverlay with GeoRasterLayer for zoom-indep
 Add to `src/lib/localStorage.spec.ts`, inside the `describe('localStorage helpers')` block:
 
 ```typescript
-	it('saves and retrieves overlay opacity', () => {
-		saveOverlayOpacity(0.7, mockLocalStorage);
-		expect(getOverlayOpacity(mockLocalStorage)).toBe(0.7);
-	});
+it('saves and retrieves overlay opacity', () => {
+	saveOverlayOpacity(0.7, mockLocalStorage);
+	expect(getOverlayOpacity(mockLocalStorage)).toBe(0.7);
+});
 
-	it('returns null when no opacity saved', () => {
-		expect(getOverlayOpacity(mockLocalStorage)).toBeNull();
-	});
+it('returns null when no opacity saved', () => {
+	expect(getOverlayOpacity(mockLocalStorage)).toBeNull();
+});
 ```
 
 Add the imports at the top:
+
 ```typescript
 import {
 	// ... existing imports ...
@@ -873,6 +888,7 @@ git commit -m "feat: add overlay opacity slider with localStorage persistence"
 ## Task 7: Area Summary — Crop Percentage Breakdown (TDD)
 
 **Files:**
+
 - Create: `src/lib/cropStats.ts`
 - Create: `src/lib/cropStats.spec.ts`
 - Create: `src/lib/components/AreaSummary.svelte`
@@ -932,7 +948,12 @@ describe('computeCropStats', () => {
 	});
 
 	it('returns empty array for all-nodata raster', () => {
-		const values = [[[0, 0], [0, 0]]];
+		const values = [
+			[
+				[0, 0],
+				[0, 0]
+			]
+		];
 		const stats = computeCropStats(values, 0);
 		expect(stats).toEqual([]);
 	});
@@ -976,10 +997,7 @@ export interface CropStat {
  * @param values - georaster.values (band × row × col)
  * @param noDataValue - value to exclude (typically 0)
  */
-export function computeCropStats(
-	values: number[][][],
-	noDataValue: number | null
-): CropStat[] {
+export function computeCropStats(values: number[][][], noDataValue: number | null): CropStat[] {
 	const counts = new Map<number, number>();
 	let total = 0;
 
@@ -1056,34 +1074,40 @@ Create `src/lib/components/AreaSummary.svelte`:
 In `src/lib/components/MapView.svelte`, after the georaster is parsed and the layer is added, compute the stats and expose them:
 
 1. Add import at the top:
+
 ```typescript
 import { computeCropStats, type CropStat } from '$lib/cropStats';
 ```
 
 2. Add a `$state` variable alongside `overlay`:
+
 ```typescript
 let cropStats = $state<CropStat[]>([]);
 ```
 
 3. In the GeoTIFF `$effect`, after `overlay = layer;` and before `loadingMessage = '';`:
+
 ```typescript
-					cropStats = computeCropStats(georaster.values, georaster.noDataValue);
+cropStats = computeCropStats(georaster.values, georaster.noDataValue);
 ```
 
 4. Also clear stats when clearing overlay (in the cleanup section):
+
 ```typescript
-			overlay = undefined;
-			cropStats = [];
+overlay = undefined;
+cropStats = [];
 ```
 
 5. Add `cropStats` to the component's props as a `$bindable` output:
 
 In the props destructuring, add:
+
 ```typescript
 		cropStats = $bindable<CropStat[]>([]),
 ```
 
 And in the props type:
+
 ```typescript
 		cropStats?: CropStat[];
 ```
@@ -1091,6 +1115,7 @@ And in the props type:
 - [ ] **Step 7: Add AreaSummary to the sidebar in +page.svelte**
 
 1. Add state and import:
+
 ```typescript
 import AreaSummary from '$lib/components/AreaSummary.svelte';
 import type { CropStat } from '$lib/cropStats';
@@ -1099,13 +1124,15 @@ let cropStats = $state<CropStat[]>([]);
 ```
 
 2. Bind `cropStats` on `<MapView>`:
+
 ```svelte
-			bind:cropStats
+bind:cropStats
 ```
 
 3. Add `<AreaSummary>` in the sidebar, after `<OpacitySlider>` and before `<SearchButton>`:
+
 ```svelte
-			<AreaSummary stats={cropStats} />
+<AreaSummary stats={cropStats} />
 ```
 
 - [ ] **Step 8: Verify build compiles and tests pass**
@@ -1167,6 +1194,7 @@ npm run dev
 4. Compare with CropScape Explorer (`https://nassgeodata.gmu.edu/CropScape/`) for the same area
 
 If overlay placement is noticeably off, potential causes:
+
 - proj4 EPSG:5070 definition mismatch — verify the definition string matches what CDL uses
 - GeoTIFF bounds vs requested bounds — with GeoRasterLayer this should be handled automatically
 - Resolution artifacts — try higher `resolution` value (512)
@@ -1183,6 +1211,7 @@ Document any findings in `planning/features.md` under the accuracy item.
 - [ ] **Step 7: Test color rendering**
 
 The CDL GeoTIFF should include an embedded color table (palette). Verify:
+
 1. Crop colors match the legend (sorghum = orange, wheat = brown, etc.)
 2. If colors look wrong (all gray, or random colors), the palette may not be read correctly
 
@@ -1197,7 +1226,7 @@ pixelValuesToColorFn: (values: number[]) => {
 	if (val === 0) return null; // nodata → transparent
 	const crop = getCropById(val);
 	return crop ? crop.color : '#C0C0C0'; // Unknown crops → light gray
-}
+};
 ```
 
 Only add this if the embedded palette doesn't work. Prefer the embedded palette because it has all 130+ CDL crop types colored correctly.
@@ -1230,7 +1259,7 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	optimizeDeps: {
 		include: ['georaster', 'georaster-layer-for-leaflet']
-	},
+	}
 	// ... test config
 });
 ```
@@ -1238,11 +1267,13 @@ export default defineConfig({
 ### GeoTIFF too large for base64 SSE
 
 If searches with radius > 30 miles fail or are extremely slow, the GeoTIFF may be too large to base64-encode in memory. Mitigation options (not in scope for this plan):
+
 1. Add a separate `/api/proxy-tif` endpoint that streams the binary directly
 2. Cap the effective resolution requested from CDL
 
 ### georaster-layer-for-leaflet can't find proj4
 
 The library looks for proj4 via the `proj4` option passed to the constructor. If reprojection fails:
+
 1. Verify `proj4.defs('EPSG:5070', ...)` is called before `parseGeoraster`
 2. Try setting `window.proj4 = proj4` as a fallback (some versions check the global)
