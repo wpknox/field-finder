@@ -67,6 +67,12 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] **CDL year range consolidated** — `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`/`CDL_YEARS`); next year's bump is one line (audit B4)
 - [x] **CDL fetch timeouts** — `AbortSignal.timeout()` on all three server-side requests; a hung NASS now surfaces "USDA CDL service is not responding — try again later" instead of an endless spinner (audit B5). Verified live against a real outage.
 
+## Implemented (dove quick wins — branch `feat/dove-quick-wins`, 2026-11-02)
+
+- [x] **2025 CDL data** — `CDL_MAX_YEAR` bumped to 2025. The live API accepts 2025 and rejects 2026 ("The year must be between 1997 and 2025") as of 2026-11-02.
+- [x] **Millet in the crop filter** — CDL 29, fallback color `#6F0048` from the 2024 raster ColorMap.
+- [x] **Dove preset button** — one click selects sunflower, millet, winter + spring wheat, sorghum (`DOVE_PRESET` in `crops.ts`). Live-verified 2026-11-02 on 2025 data: overlay pixel counts matched an independently downloaded raster exactly.
+
 ## Planned (Near-Term Follow-ups)
 
 High-value features deferred from initial build:
@@ -91,6 +97,11 @@ High-value features deferred from initial build:
 - [ ] **Share link** — URL encodes location/radius/year so a view can be shared
 - [ ] **Export** — download the PNG or the map as a file
 - [ ] **Saved searches** — store past queries with results for quick reload
+- [ ] **Field crop history on click** — "sunflower '23 → wheat '24 → fallow '25" for a clicked point. CDL is always a season behind (2026 data lands ~early 2027), so history is the best predictor of what's in the field this fall. Candidate sources: CDL point lookups per year, or USDA Crop Sequence Boundaries (unverified).
+- [ ] **Current-season satellite view** — recent Sentinel-2 imagery to see whether a field is planted/cut/harvested this season. Free keyless tile source not yet verified.
+- [ ] **Shared permission tracker** — per-parcel owner, phone, asked-on date, yes/no, notes, visible to the whole group (needs a server-side DB). Pairs with the parcel layer.
+- [ ] **Shared waypoints** — waypoints are per-browser localStorage today; the group can't see each other's.
+- [ ] **Legal shooting hours / sunset** for the selected location.
 - [ ] **Additional animal types** — waterfowl, big game scouting beyond upland birds
 - [ ] **Mobile-optimized layout** — responsive sidebar, touch-friendly controls
 
@@ -104,7 +115,7 @@ High-value features deferred from initial build:
 - Must proxy CDL PNG server-side (NASS servers don't send CORS headers)
 - Coordinate projection: input EPSG:4326 → bounding box EPSG:5070 (Albers) for CDL API
 - CDL API returns XML; must parse `returnURL` and `returnURLArray` elements
-- Year range currently supported by CDL: 1997–2024 (validate on input) — single source of truth is `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`)
+- Year range currently supported by CDL: 1997–2025 (validate on input) — single source of truth is `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`)
 - Radius capped at 50 miles to avoid huge/slow requests
 
 ### Non-Functional
