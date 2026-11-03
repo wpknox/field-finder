@@ -38,7 +38,11 @@
 	let cropFilters = $state<Record<CropKey, boolean>>({} as Record<CropKey, boolean>);
 	let loadingMessage = $state('');
 	let loading = $derived(loadingMessage !== '');
-	let searchResult = $state<SearchResult | null>(null);
+	// $state.raw: a SearchResult is an immutable snapshot that is only ever
+	// replaced, never mutated, so there is no reason to deep-proxy it (or the
+	// multi-megabyte base64 string inside). Reassignment still triggers MapView's
+	// overlay effect, and identity comparisons stay plain object identity.
+	let searchResult = $state.raw<SearchResult | null>(null);
 	let overlayOpacity = $state(0.7);
 	let cropStats = $state<CropStat[]>([]);
 	// Colormap of the currently rendered raster, lifted out of MapView so the
@@ -116,11 +120,12 @@
 		let handedOffToMap = false;
 
 		// Snapshot the search parameters up front — the user is free to move the
-		// marker or the radius slider while the multi-second fetch is in flight,
-		// and the overlay must be placed where the search actually happened.
+		// marker, the radius slider, or the year dropdown while the multi-second
+		// fetch is in flight, and the overlay must reflect the search that happened.
 		const searchLat = mapCenter[0];
 		const searchLon = mapCenter[1];
 		const searchRadius = radius;
+		const searchYear = year;
 
 		try {
 			const selectedCropIds = Object.entries(cropFilters)
@@ -134,7 +139,7 @@
 					lat: searchLat,
 					lon: searchLon,
 					radius: searchRadius,
-					year,
+					year: searchYear,
 					crops: selectedCropIds
 				})
 			});
@@ -167,8 +172,10 @@
 							tifBase64: event.tifBase64,
 							lat: searchLat,
 							lon: searchLon,
-							radius: searchRadius
+							radius: searchRadius,
+							year: searchYear
 						};
+						loadingMessage = 'Rendering crop overlay...';
 						handedOffToMap = true;
 					} else if (event.type === 'error') {
 						errorMessage = event.message || "Couldn't fetch crop data — try again";
@@ -178,12 +185,29 @@
 		} catch {
 			errorMessage = "Couldn't fetch crop data — try again";
 		} finally {
+			// Once a result is handed to MapView, the page keeps showing
+			// "Rendering crop overlay..." until MapView reports back through
+			// handleRenderComplete / handleRenderError.
 			if (!handedOffToMap) {
 				loadingMessage = '';
 			}
-			// If handedOffToMap is true, MapView manages loadingMessage
-			// from here — it will clear it when GeoTIFF rendering finishes
 		}
+	}
+
+	// MapView reports how rendering a search result went. The page is the only
+	// writer of loadingMessage (audit F4). MapView cancels superseded runs, so a
+	// report about a stale result should never arrive. The identity guard is
+	// defense in depth: a newer search owns the message, and a stale report must
+	// not clear it.
+	function handleRenderComplete(result: SearchResult) {
+		if (result !== searchResult) return;
+		loadingMessage = '';
+	}
+
+	function handleRenderError(result: SearchResult) {
+		if (result !== searchResult) return;
+		loadingMessage = '';
+		errorMessage = 'Failed to render crop overlay';
 	}
 </script>
 
@@ -199,7 +223,7 @@
 		<CropFilter bind:selected={cropFilters} colors={cropColors} />
 		<OpacitySlider bind:opacity={overlayOpacity} />
 		<SearchButton onclick={handleSearch} {loading} disabled={!hasLocation} />
-		<AreaSummary stats={cropStats} />
+		<AreaSummary stats={cropStats} year={searchResult?.year} />
 	</Sidebar>
 
 	<main class="relative flex-1">
@@ -209,13 +233,15 @@
 			{radius}
 			{searchResult}
 			{overlayOpacity}
-			bind:loadingMessage
+			{loadingMessage}
 			{panVersion}
 			bind:errorMessage
 			bind:waypoints
 			bind:cropStats
 			bind:cropPalette
 			onMapClick={handleMapClick}
+			onRenderComplete={handleRenderComplete}
+			onRenderError={handleRenderError}
 		/>
 	</main>
 </div>

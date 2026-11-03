@@ -2,7 +2,10 @@
 <script lang="ts">
 	import type { CropStat } from '$lib/cropStats';
 
-	let { stats = [] }: { stats?: CropStat[] } = $props();
+	// `year` is the year of the raster these stats were computed from (the
+	// search-time snapshot), which may differ from the year dropdown if the user
+	// changed it without searching again.
+	let { stats = [], year }: { stats?: CropStat[]; year?: number } = $props();
 	let open = $state(true);
 </script>
 
@@ -12,7 +15,9 @@
 			onclick={() => (open = !open)}
 			class="flex w-full items-center justify-between text-sm font-semibold text-gray-700 hover:text-gray-900"
 		>
-			<span>Area Summary</span>
+			<span
+				>Area Summary{#if year !== undefined}&nbsp;·&nbsp;{year}{/if}</span
+			>
 			<span class="text-xs text-gray-400">{open ? '▲' : '▼'}</span>
 		</button>
 		<div

@@ -9,6 +9,8 @@
 	import { resolveCropColors, type CdlPalette } from '$lib/crops';
 	import { rasterToDataUrl } from '$lib/renderGeoraster';
 	import type { SearchResult } from '$lib/searchResult';
+	import { startOverlayRun } from '$lib/overlayRun';
+	import { isTiff, withTimeout, RASTER_PARSE_TIMEOUT_MS } from '$lib/rasterGuards';
 
 	// Two sources of center/radius live here, and they are NOT interchangeable:
 	//   • live `center` / `radius` — drive the marker and the bbox preview rectangle,
@@ -22,13 +24,15 @@
 		radius = 10,
 		searchResult = null,
 		overlayOpacity = 0.7,
-		loadingMessage = $bindable(''),
+		loadingMessage = '',
 		panVersion = 0,
 		errorMessage = $bindable(''),
 		waypoints = $bindable<Waypoint[]>([]),
 		cropStats = $bindable<CropStat[]>([]),
 		cropPalette = $bindable<CdlPalette | null>(null),
-		onMapClick
+		onMapClick,
+		onRenderComplete,
+		onRenderError
 	}: {
 		center?: [number, number];
 		zoom?: number;
@@ -42,6 +46,10 @@
 		cropStats?: CropStat[];
 		cropPalette?: CdlPalette | null;
 		onMapClick?: (lat: number, lon: number) => void;
+		/** A search result finished rendering and its overlay is on the map. */
+		onRenderComplete?: (result: SearchResult) => void;
+		/** A search result could not be rendered. */
+		onRenderError?: (result: SearchResult) => void;
 	} = $props();
 
 	// Colors the overlay is actually painted with — falls back to the hardcoded
@@ -168,84 +176,111 @@
 		}
 	});
 
-	// GeoTIFF overlay — decode, parse, render to canvas, place as imageOverlay.
-	// georaster handles pixel data + crop stats; rasterToDataUrl() renders once at
-	// native resolution using the embedded CDL palette; imageOverlay places it with
-	// lat/lon bounds (no per-zoom re-render, so zooming stays smooth). Reads overlay
-	// and overlayOpacity via untrack() to avoid making them reactive dependencies.
-	$effect(() => {
-		if (!mapReady || !map || !searchResult) return;
+	interface RenderedRaster {
+		dataUrl: string;
+		bounds: [[number, number], [number, number]];
+		stats: CropStat[];
+		palette: CdlPalette | null;
+	}
 
-		const oldOverlay = untrack(() => overlay);
-		if (oldOverlay) {
-			map!.removeLayer(oldOverlay);
-			overlay = undefined;
-			cropStats = [];
+	/**
+	 * Decode, parse, and paint one search result. Reads nothing from component
+	 * state — the overlay is placed with the snapshot's own lat/lon/radius (audit
+	 * B2), never the live center/radius.
+	 */
+	async function renderSearchResult(result: SearchResult): Promise<RenderedRaster> {
+		const binaryStr = atob(result.tifBase64);
+		const bytes = new Uint8Array(binaryStr.length);
+		for (let i = 0; i < binaryStr.length; i++) {
+			bytes[i] = binaryStr.charCodeAt(i);
 		}
 
-		// The snapshot carries the center/radius the search was issued with, so the
-		// overlay lands on the searched bbox regardless of what the user has moved
-		// since. A new object per search also guarantees this effect re-runs even
-		// when two searches return identical raster bytes. See audit B2/B3.
-		const currentResult = searchResult;
-		const {
-			tifBase64: currentTif,
-			lat: searchLat,
-			lon: searchLon,
-			radius: searchRadius
-		} = currentResult;
+		// A non-TIFF (e.g. an HTML error page served in place of the raster) would
+		// hang georaster's Web Worker forever — reject it up front. See rasterGuards.ts.
+		if (!isTiff(bytes)) {
+			throw new Error('Search result is not a GeoTIFF');
+		}
 
-		(async () => {
-			try {
-				loadingMessage = 'Rendering crop overlay...';
+		const parseGeoraster = await import('georaster').then((m) => m.default);
+		// Backstop for any other parse that never settles (same worker issue).
+		const georaster = await withTimeout(
+			parseGeoraster(bytes.buffer),
+			RASTER_PARSE_TIMEOUT_MS,
+			'Timed out parsing the crop raster'
+		);
 
-				const binaryStr = atob(currentTif);
-				const bytes = new Uint8Array(binaryStr.length);
-				for (let i = 0; i < binaryStr.length; i++) {
-					bytes[i] = binaryStr.charCodeAt(i);
+		// CDL value 0 is background, but georaster.noDataValue is null and
+		// palette[0] is opaque black — so null must be normalized to 0, or
+		// background pixels paint black on the map and get counted as a crop.
+		const noData = georaster.noDataValue ?? 0;
+
+		const bbox = computeBboxLatLon(result.lat, result.lon, result.radius);
+		return {
+			dataUrl: rasterToDataUrl(
+				georaster.values[0],
+				georaster.width,
+				georaster.height,
+				noData,
+				georaster.palette
+			),
+			bounds: [
+				[bbox.south, bbox.west],
+				[bbox.north, bbox.east]
+			],
+			stats: computeCropStats(georaster.values, noData, georaster.palette),
+			palette: georaster.palette ?? null
+		};
+	}
+
+	// GeoTIFF overlay — one cancellable run per search result (src/lib/overlayRun.ts).
+	// The teardown cancels the run, and Svelte calls it whenever searchResult changes
+	// or the map unmounts. A run still parsing therefore never reaches the map, and a
+	// run whose layer is already up removes it. This replaces the identity checks that
+	// could orphan a layer when two renders overlapped (audit F1). A fresh result
+	// object per search still guarantees a re-run on byte-identical data (audit B3).
+	//
+	// Outcomes are reported to the page, which is the only writer of loadingMessage
+	// (audit F4).
+	$effect(() => {
+		if (!mapReady || !map || !searchResult) return;
+		const result = searchResult;
+		const targetMap = map;
+
+		// untrack: startOverlayRun calls render() synchronously, and nothing it
+		// reads may become a dependency of this effect — only mapReady/searchResult.
+		const run = untrack(() =>
+			startOverlayRun<RenderedRaster, import('leaflet').ImageOverlay>(result, {
+				render: renderSearchResult,
+				createLayer: async ({ dataUrl, bounds }) => {
+					const L = await import('leaflet');
+					return L.imageOverlay(dataUrl, bounds, { opacity: untrack(() => overlayOpacity) });
+				},
+				attach: (layer) => {
+					layer.addTo(targetMap);
+				},
+				detach: (layer) => {
+					layer.remove();
+				},
+				onComplete: (rendered, layer) => {
+					overlay = layer;
+					cropStats = rendered.stats;
+					cropPalette = rendered.palette;
+					onRenderComplete?.(result);
+				},
+				onError: (err) => {
+					console.error('GeoTIFF rendering error:', err);
+					onRenderError?.(result);
 				}
+			})
+		);
 
-				const parseGeoraster = await import('georaster').then((m) => m.default);
-				const georaster = await parseGeoraster(bytes.buffer);
-
-				if (searchResult !== currentResult) return;
-
-				// CDL value 0 is background, but georaster.noDataValue is null and
-				// palette[0] is opaque black — so null must be normalized to 0, or
-				// background pixels paint black on the map and get counted as a crop.
-				const noData = georaster.noDataValue ?? 0;
-
-				cropStats = computeCropStats(georaster.values, noData, georaster.palette);
-				cropPalette = georaster.palette ?? null;
-
-				const dataUrl = rasterToDataUrl(
-					georaster.values[0],
-					georaster.width,
-					georaster.height,
-					noData,
-					georaster.palette
-				);
-
-				const bbox = computeBboxLatLon(searchLat, searchLon, searchRadius);
-				const bounds: [[number, number], [number, number]] = [
-					[bbox.south, bbox.west],
-					[bbox.north, bbox.east]
-				];
-
-				const L = await import('leaflet');
-				const initialOpacity = untrack(() => overlayOpacity);
-				const layer = L.imageOverlay(dataUrl, bounds, { opacity: initialOpacity });
-				layer.addTo(map!);
-				overlay = layer;
-				loadingMessage = '';
-			} catch (err) {
-				console.error('GeoTIFF rendering error:', err);
-				if (searchResult === currentResult) {
-					loadingMessage = '';
-					errorMessage = 'Failed to render crop overlay';
-				}
-			}
-		})();
+		return () => {
+			run.cancel();
+			overlay = undefined;
+			// cropPalette is deliberately NOT cleared: the CDL colormap is near-constant,
+			// and clearing it would flicker the swatches back to fallbacks mid-search.
+			cropStats = [];
+		};
 	});
 
 	// Opacity — reactively update when the slider changes, without re-parsing the GeoTIFF
