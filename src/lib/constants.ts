@@ -6,7 +6,7 @@
  * dropdown, the default selection, and server-side request validation.
  */
 export const CDL_MIN_YEAR = 1997;
-export const CDL_MAX_YEAR = 2024;
+export const CDL_MAX_YEAR = 2025;
 
 /** Every selectable CDL year, newest first (dropdown order). */
 export const CDL_YEARS = Array.from(

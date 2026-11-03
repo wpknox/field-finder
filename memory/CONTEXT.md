@@ -21,11 +21,11 @@ related:
 
 ## Current State
 
-- **Phase**: PR #1 and PR #2 merged. **PR #3 open** (https://github.com/wpknox/field-finder/pull/3) — audit tranche 1 correctness fixes, awaiting review/merge.
-- **Branch**: `fix/audit-tranche-1` — 14 commits pushed + **4 unpushed docs commits** (2026-09-04: the map-layers design spec, its review fixes, and the handoff). Push before merging.
-- **Resume from**: `planning/plans/2026-09-04-HANDOFF-next-session.md` — ordered next steps (push/merge #3 → plan 2a → execute 2a → plan layers sub-project 1).
-- **Worktree**: none — tranche 1 was executed in the primary directory, not a worktree, because the plan needed a dev server plus live browser verification
+- **Phase**: PRs #1, #2, #3 merged (#3 merged 2026-11-02 as `b1f83ec`). **Dove quick wins** on branch `feat/dove-quick-wins` (2025 data, Millet filter, Dove preset) — PR open, awaiting merge.
+- **Resume from**: `planning/plans/2026-09-04-HANDOFF-next-session.md`, steps 2 onward (plan 2a → execute 2a → plan layers sub-project 1). Step 1 (merge #3) is done.
+- **Worktree**: none
 - **GitHub**: https://github.com/wpknox/field-finder
+- **CDL service recovered** — answering in ~13 s on 2026-11-02, and serving 2025 data.
 
 ## What's Built (all on `main`)
 
@@ -97,7 +97,7 @@ GeoTIFF overlay (PR #2 — merged to `main` 2026-08-26):
 
 - **PR #3 open — audit tranche 1.** Fixes C1, B1, B2, B3, B4, B5 from `planning/audit-2026-08-26.md`, executed per `planning/plans/2026-08-26-audit-tranche-1.md`. Suite is **55/55**, `svelte-check` 0 errors on 665 files, lint passes, and `npm run build` succeeds (first build ever run on this codebase).
 - **B2/B3 are now live-verified** (2026-08-26). CDL being down no longer blocks this: stub `window.fetch` for `/api/search` with a synthetic GeoTIFF and the whole client path runs for real. B2 evidence — original bbox at screen rect `(539,205,278×278)`, marker moved mid-flight so the live bbox went to `(799,376)`, overlay landed at `(539,205,278×278)`, delta `0,0,0,0`. B3 evidence — three consecutive byte-identical searches each settled in 1400 ms with the button re-enabled and exactly one overlay layer. Regenerate the test raster with `geotiff`'s `writeArrayBuffer` (16×16, uint8); a palette is not needed since B2/B3 concern bounds and effect re-triggering, not colour.
-- **⚠️ Still needs CDL to recover:** confirming whether `CDL_MAX_YEAR` can move to 2025 (every probe hung), and audit plan 2d (the e2e smoke test).
+- **Still open from the CDL outage:** audit plan 2d (the e2e smoke test) — unblocked now that CDL answers. (`CDL_MAX_YEAR` → 2025 was confirmed and shipped 2026-11-02.)
 - **CDL service is hanging as of 2026-08-26** — not merely slow. A direct probe returns `status=000 size=0 time=40.001s` while the host answers (CropScape returns 302). This is the documented "CDL API intermittently down" blocker, and it is exactly what B5's timeouts now handle gracefully.
 - **NEXT: write the tranche 2 plan.** Rows 6–10 of the audit's execution order plus all of section F are unplanned. `planning/audit-2026-08-26.md` now carries a **"Tranche 2 — TO BE PLANNED"** section proposing four grouped plans (2a overlay hardening, 2b honest errors, 2c cleanup batch, 2d e2e smoke test). Start with **2a** — F1/F2/F4 sit under the year-comparison feature, and doing them afterward means retrofitting doubled overlay plumbing. Use the same loop tranche 1 used: write plan → review plan → subagent per task → spec review → quality review.
 - **Queued after 2a: the map-layers feature** (aerial imagery basemap → parcel/property-line layer → public-land layer). Design spec approved by two spec-review rounds on 2026-09-04: `docs/superpowers/specs/2026-09-04-property-lines-imagery-public-land-design.md`. **wpknox has not yet read it** — get that read before writing plans. Key facts baked into it: Nebraska's free statewide parcel service has **no owner-name field** (Colorado's does); PAD-US manager names come from `Loc_Mang`, `Mang_Name` is a code; USGS imagery tiles are `{z}/{y}/{x}`; parcels fetch by viewport ≥ zoom 13, public land ≥ zoom 11, request bbox clamped to 1.0°; data-layer polygons need `bubblingMouseEvents: false` or clicks move the search marker. Regrid is the paid fallback slot, not built. All three sub-projects touch `MapView.svelte`/`+page.svelte`, hence after 2a and before tranche 3.
@@ -110,7 +110,7 @@ GeoTIFF overlay (PR #2 — merged to `main` 2026-08-26):
 - **Done 2026-08-23 (commit `9cef53f`)**: legend and crop-filter swatches now derive from the live `georaster.palette`, so they can no longer drift from the overlay. `resolveCropColors(palette)` in `crops.ts` returns a `Record<CropKey, string>`, falling back per-crop to the hardcoded `CROPS` hex when the palette is absent, missing that id, or has a transparent entry. The palette rides the same MapView → `+page.svelte` → component path that `cropStats` already used (`bind:cropPalette` beside `bind:cropStats`); `CropFilter`/`Legend` default the prop to `resolveCropColors()` so first paint before any search is still correct. `computeCropStats` reuses the same `paletteColor` conversion instead of its own inline one. Suite 51/51.
   - Hardcoded `CROPS` colors are retained deliberately as the pre-search fallback — do not delete them.
   - `cropPalette` is intentionally NOT cleared when an overlay is removed (unlike `cropStats`), since the CDL colormap is constant across bboxes/years and clearing would only flicker back to fallbacks mid-search.
-  - Note the palette was verified against one raster (Eustis NE, 2024). Constancy across tiles/years is believed, not proven — but drift no longer matters visually now that swatches read from the raster.
+  - The colormap is **not** constant across years: the 2025 raster is one shade darker on many channels (sorghum `#FF9E09` vs 2024's `#FF9E0A`; raw 2313 vs 2570). Invisible, and harmless because swatches read from the live raster. Confirmed 2026-11-02.
 
 ## People / Roles
 

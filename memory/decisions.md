@@ -398,3 +398,13 @@ Error shape verified empirically on Node 24 by forcing a real connect timeout ag
 **Consequences baked into the spec that are easy to get wrong:** data-layer polygons must set `bubblingMouseEvents: false` (otherwise a click reaches the map handler and silently moves the search marker); polygons need `fill: true` with `fillOpacity: 0` to be clickable while transparent; parcels fetch only at zoom ≥ 13 and public land at ≥ 11, with the request bbox clamped client-side to 1.0° because ultrawide displays exceed a naive cap; the bottom-left hint slot is shared and needs a precedence rule.
 
 **Alternatives considered:** Continuing inline in MapView (fastest, but the reason the file is already hard to work in); a Svelte store per layer (the codebase's established pattern is prop-drilling from `+page.svelte`, and introducing a second state mechanism for three toggles is not justified).
+
+---
+
+### [2026-11-02] A one-click "Dove" crop preset, excluding corn
+
+**Decision:** The Crop Types header gets a **Dove** button beside Select All / Clear All. It replaces the selection with exactly `DOVE_PRESET` (`src/lib/crops.ts`): sunflower, millet, winter wheat, spring wheat, sorghum. Millet (CDL 29) was added to the filter list for it — it was already labelled in Area Summary but could not be selected.
+
+**Reason:** The group's main use is dove scouting, and these are the crops doves feed on. Corn is left out on purpose: it is ~24% of the Eustis test box and would swamp the map, defeating the point of a preset. The preset is a single constant so its contents are a one-line change if the group wants corn or open water added.
+
+**Alternatives considered:** A presets dropdown (pheasant / quail / dove) — premature with one preset; including open water for nearby-water context — deferred until the hydrography/imagery layers, since CDL's 30 m water pixels miss most stock ponds anyway.

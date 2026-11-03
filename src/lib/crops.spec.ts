@@ -3,6 +3,8 @@ import {
 	CROPS,
 	getCropById,
 	getAllCrops,
+	DOVE_PRESET,
+	presetSelection,
 	paletteColor,
 	resolveCropColors,
 	type CdlPalette
@@ -15,6 +17,12 @@ describe('crops config', () => {
 	it('exports a CROPS object with known crop entries', () => {
 		expect(CROPS.sorghum).toEqual({ id: 4, name: 'Sorghum', color: '#FF9E0A' });
 		expect(CROPS.openWater).toEqual({ id: 111, name: 'Open Water', color: '#4A6FA2' });
+	});
+
+	// Millet is a key dove crop in SW Nebraska / NE Colorado. Color is the 2024
+	// raster's ColorMap entry [28527, 0, 18504] (each a multiple of 257).
+	it('includes millet', () => {
+		expect(CROPS.millet).toEqual({ id: 29, name: 'Millet', color: '#6F0048' });
 	});
 
 	it('every crop has id, name, and color', () => {
@@ -99,6 +107,7 @@ describe('resolveCropColors', () => {
 			23: [16, 17, 18, 255],
 			24: [19, 20, 21, 255],
 			28: [22, 23, 24, 255],
+			29: [40, 41, 42, 255],
 			36: [25, 26, 27, 255],
 			61: [28, 29, 30, 255],
 			111: [31, 32, 33, 255],
@@ -111,6 +120,7 @@ describe('resolveCropColors', () => {
 		expect(colors.sorghum).toBe('rgb(4, 5, 6)');
 		expect(colors.barley).toBe('rgb(13, 14, 15)');
 		expect(colors.oats).toBe('rgb(22, 23, 24)');
+		expect(colors.millet).toBe('rgb(40, 41, 42)');
 		expect(colors.alfalfa).toBe('rgb(25, 26, 27)');
 		expect(colors.wetlands).toBe('rgb(37, 38, 39)');
 	});
@@ -144,5 +154,32 @@ describe('resolveCropColors', () => {
 	it('returns an entry for every crop key', () => {
 		const colors = resolveCropColors(makePalette({ 1: [1, 2, 3, 255] }));
 		expect(Object.keys(colors).sort()).toEqual(Object.keys(CROPS).sort());
+	});
+});
+
+describe('DOVE_PRESET', () => {
+	it('is the dove food crops', () => {
+		expect([...DOVE_PRESET].sort()).toEqual(
+			['millet', 'sorghum', 'springWheat', 'sunflower', 'winterWheat'].sort()
+		);
+	});
+
+	it('only names real crop keys', () => {
+		for (const key of DOVE_PRESET) expect(CROPS).toHaveProperty(key);
+	});
+});
+
+describe('presetSelection', () => {
+	it('checks exactly the preset crops and unchecks everything else', () => {
+		const selection = presetSelection(DOVE_PRESET);
+
+		expect(Object.keys(selection).sort()).toEqual(Object.keys(CROPS).sort());
+		for (const key of Object.keys(CROPS) as Array<keyof typeof CROPS>) {
+			expect(selection[key], key).toBe(DOVE_PRESET.includes(key));
+		}
+	});
+
+	it('unchecks everything for an empty preset', () => {
+		expect(Object.values(presetSelection([])).every((v) => v === false)).toBe(true);
 	});
 });

@@ -137,6 +137,11 @@ export const CDL_LABELS: Record<number, string> = {
  * legend page (e.g. corn is #FFD200 here, not #FFD300). The raster's colormap is
  * authoritative — its 16-bit entries are exact multiples of 257, so these are
  * not rounding artifacts.
+ *
+ * The colormap is NOT identical across years: the 2025 raster's entries are one
+ * shade darker on many channels (sorghum #FF9E09 vs 2024's #FF9E0A). That is
+ * invisible, and the swatches resolve from the live palette anyway — these
+ * hexes are only the pre-search fallback.
  */
 export const CROPS = {
 	corn: { id: 1, name: 'Corn', color: '#FFD200' },
@@ -147,6 +152,7 @@ export const CROPS = {
 	springWheat: { id: 23, name: 'Spring Wheat', color: '#D7B56B' },
 	winterWheat: { id: 24, name: 'Winter Wheat', color: '#A46F00' },
 	oats: { id: 28, name: 'Oats', color: '#9F5888' },
+	millet: { id: 29, name: 'Millet', color: '#6F0048' },
 	alfalfa: { id: 36, name: 'Alfalfa', color: '#FFA4E1' },
 	fallow: { id: 61, name: 'Fallow/Idle', color: '#BEBE77' },
 	openWater: { id: 111, name: 'Open Water', color: '#4A6FA2' },
@@ -156,6 +162,26 @@ export const CROPS = {
 
 export type CropKey = keyof typeof CROPS;
 export type CropEntry = (typeof CROPS)[CropKey];
+
+/**
+ * Dove food crops — sunflower, millet, wheat stubble, and milo. Corn is left
+ * out on purpose: it is a quarter of a typical Nebraska search area and would
+ * swamp the map, which defeats the point of a preset.
+ */
+export const DOVE_PRESET: readonly CropKey[] = [
+	'sunflower',
+	'millet',
+	'winterWheat',
+	'springWheat',
+	'sorghum'
+];
+
+/** A full crop-filter selection with exactly `keys` checked. */
+export function presetSelection(keys: readonly CropKey[]): Record<CropKey, boolean> {
+	return Object.fromEntries(
+		(Object.keys(CROPS) as CropKey[]).map((key) => [key, keys.includes(key)])
+	) as Record<CropKey, boolean>;
+}
 
 /** Look up a crop by its CDL numeric ID. */
 export function getCropById(id: number): CropEntry | undefined {
