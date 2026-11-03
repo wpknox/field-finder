@@ -22,7 +22,7 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] Search bar clears when user clicks on the map
 - [x] Interactive Leaflet map with click-to-set-location
 - [x] Radius slider (1–50 mi, default 10, amber warning above 15)
-- [x] Year dropdown (1997–2024, default latest — range lives in `src/lib/constants.ts`)
+- [x] Year dropdown (1997–2025, default latest — range lives in `src/lib/constants.ts`)
 - [x] Crop filter checkboxes with color swatches (persisted to localStorage)
 - [x] Hint when no crops selected: "No crops selected — all crop data will be shown"
 - [x] Explicit Search button (no auto-search)
@@ -58,31 +58,38 @@ All features from the initial build plan are complete, plus post-review improvem
 - [x] **Area Summary / crop statistics** — Collapsible section below Search button; `computeCropStats` uses `georaster.values[0]` for pixel counts and `georaster.palette` for exact CDL colors. `CDL_LABELS` covers all 130 CDL values for labeling.
 - [x] **Complete CDL value lookup** — `CDL_LABELS` record in `crops.ts` with all 130 CDL IDs and names; no more `Other (ID: X)` in stats.
 
-## Implemented (PR #3 — audit tranche 1, open 2026-08-26)
+## Implemented (PR #3 — audit tranche 1, merged 2026-11-02 as `b1f83ec`)
 
 - [x] **Prettier sweep** — `npm run lint` was failing on 14 unformatted files (audit C1)
 - [x] **Pan regression fixed** — the map no longer re-centers on map click or marker drag; only address search / lat-lon entry pans (audit B1)
-- [x] **Overlay pinned to the searched bbox** — `SearchResult` snapshot captured before the request, so dragging the marker mid-fetch no longer misplaces the raster (audit B2). ⚠️ not yet verified live
-- [x] **Repeat-search soft-lock fixed** — a fresh result object per search retriggers the overlay effect even on byte-identical data (audit B3). ⚠️ not yet verified live
+- [x] **Overlay pinned to the searched bbox** — `SearchResult` snapshot captured before the request, so dragging the marker mid-fetch no longer misplaces the raster (audit B2). Live-verified 2026-08-26 with a stubbed SSE response
+- [x] **Repeat-search soft-lock fixed** — a fresh result object per search retriggers the overlay effect even on byte-identical data (audit B3). Live-verified 2026-08-26 with a stubbed SSE response
 - [x] **CDL year range consolidated** — `src/lib/constants.ts` (`CDL_MIN_YEAR`/`CDL_MAX_YEAR`/`CDL_YEARS`); next year's bump is one line (audit B4)
 - [x] **CDL fetch timeouts** — `AbortSignal.timeout()` on all three server-side requests; a hung NASS now surfaces "USDA CDL service is not responding — try again later" instead of an endless spinner (audit B5). Verified live against a real outage.
 
-## Implemented (dove quick wins — branch `feat/dove-quick-wins`, 2026-11-02)
+## Implemented (PR #4 — dove quick wins, merged 2026-11-02 as `cfbc853`)
 
 - [x] **2025 CDL data** — `CDL_MAX_YEAR` bumped to 2025. The live API accepts 2025 and rejects 2026 ("The year must be between 1997 and 2025") as of 2026-11-02.
 - [x] **Millet in the crop filter** — CDL 29, fallback color `#6F0048` from the 2024 raster ColorMap.
 - [x] **Dove preset button** — one click selects sunflower, millet, winter + spring wheat, sorghum (`DOVE_PRESET` in `crops.ts`). Live-verified 2026-11-02 on 2025 data: overlay pixel counts matched an independently downloaded raster exactly.
 
+## Implemented (tranche 2a — branch `fix/audit-tranche-2a`, 2026-11-02)
+
+- [x] **Cancellable overlay renders.** A newer search cancels a render still in flight, so an old overlay can no longer be orphaned on the map (audit F1, `startOverlayRun`). Live-verified with two back-to-back results: the map never held more than one layer.
+- [x] **Year in Area Summary.** The heading reads "Area Summary · 2024" for the year that was actually searched, not whatever the dropdown shows now (audit F2).
+- [x] **One owner of the loading message.** `+page.svelte` alone sets and clears it, and MapView reports through callbacks. Every success and failure path clears it once and re-enables Search (audit F4).
+- [x] **Bad-payload / hung-parse guard.** A non-TIFF payload, or a raster parse that never finishes, now shows "Failed to render crop overlay" instead of hanging on "Rendering crop overlay" forever. The guard is a magic-number check plus a 60 s timeout (audit F5, Task 3b).
+
 ## Planned (Near-Term Follow-ups)
 
 High-value features deferred from initial build:
 
-- [ ] **Year comparison** — toggle between two years' overlays (blocked: do audit plan 2a, overlay hardening, first)
+- [ ] **Year comparison** — toggle between two years' overlays (unblocked: audit 2a, overlay hardening, is done)
 - [ ] **Year opacity blending** — independent opacity per year for visual comparison
-- [ ] **Aerial imagery basemap toggle** — Street / Aerial switch using USGS Imagery Only tiles (free, keyless, public domain). Spec: `docs/superpowers/specs/2026-09-04-property-lines-imagery-public-land-design.md`, sub-project 1. Build after tranche 2a.
+- [ ] **Aerial imagery basemap toggle** — Street / Aerial switch using USGS Imagery Only tiles (free, keyless, public domain). Spec: `docs/superpowers/specs/2026-09-04-property-lines-imagery-public-land-design.md`, sub-project 1.
 - [ ] **Property lines (parcel layer)** — viewport-fetched parcels from free state services via a provider registry (Nebraska: no owner name, county deep link instead; Colorado: owner name + address). Same spec, sub-project 2. Regrid is a future paid provider slot, not built.
 - [ ] **Public land layer** — PAD-US + Nebraska Open Fields & Waters, shaded by access class, legend swatches from the same constant. Same spec, sub-project 3. Kansas WIHA is a later adapter.
-- [ ] **UI/UX redesign** — deliberate visual + interaction pass using the `frontend-design` plugin (installed 2026-08-26) and `theme-factory`. Tranche 3 in `planning/audit-2026-08-26.md`; start with `brainstorming`. Must preserve the settled UX decisions (no auto-search, inform-don't-restrict, localStorage persistence, swatches from the live raster palette). Likely absorbs D2–D5.
+- [ ] **UI/UX redesign** — deliberate visual + interaction pass using the `frontend-design` plugin (installed 2026-08-26) and `theme-factory`. Tranche 3 in `planning/audit-2026-08-26.md`; start with `brainstorming`. Must preserve the settled UX decisions (no auto-search, inform-don't-restrict, localStorage persistence, swatches from the live raster palette). Likely absorbs D2–D5. **Next up:** plan it next session, starting with `brainstorming`.
 
 ---
 

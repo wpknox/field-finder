@@ -408,3 +408,38 @@ Error shape verified empirically on Node 24 by forcing a real connect timeout ag
 **Reason:** The group's main use is dove scouting, and these are the crops doves feed on. Corn is left out on purpose: it is ~24% of the Eustis test box and would swamp the map, defeating the point of a preset. The preset is a single constant so its contents are a one-line change if the group wants corn or open water added.
 
 **Alternatives considered:** A presets dropdown (pheasant / quail / dove) — premature with one preset; including open water for nearby-water context — deferred until the hydrography/imagery layers, since CDL's 30 m water pixels miss most stock ponds anyway.
+
+---
+
+### [2026-11-02] Overlay renders are cancellable runs owned by the $effect teardown; the page alone writes loadingMessage
+
+**Decision:** Three changes (audit tranche 2a):
+
+- **F1:** each overlay render is a run started by `startOverlayRun` (`src/lib/overlayRun.ts`). The overlay `$effect` returns the run's cancel as its teardown. When a newer `searchResult` arrives, Svelte tears down the old effect, which cancels the old run. A cancelled run never attaches its layer.
+- **F4:** MapView no longer writes `loadingMessage`. It reports through `onRenderComplete` / `onRenderError` callbacks, and `+page.svelte` is the only component that sets or clears the message.
+- `searchResult` is `$state.raw`, and it now carries `year` (F2).
+
+**Reason:**
+
+- The identity checks were scattered through the async render and still left a window between the last check and `addTo(map)`.
+- Effect teardown makes Svelte the scheduler: a superseded run is cancelled exactly when its effect is, with no bookkeeping of our own.
+- A single writer removes the `handedOffToMap` split-brain, where the page and MapView each owned the message for part of a search.
+
+**Also decided: Task 3b, the raster guards (`src/lib/rasterGuards.ts`, audit F5).** georaster 1.6.0 parses in a Web Worker that never wires `onerror`, so an unparseable payload produced a promise that never settled. The UI then sat on "Rendering crop overlay" forever. Two guards fix it:
+
+- `isTiff()` checks the magic number before parsing: `II` or `MM`, then 42 (TIFF) or 43 (BigTIFF), in both byte orders. BigTIFF is accepted on purpose, because geotiff.js parses it and rejecting it would turn a valid raster into a false error.
+- `withTimeout()` gives the parse a 60 s backstop (`RASTER_PARSE_TIMEOUT_MS`). A 50-mile raster parses in seconds, so only a hung parse hits it.
+
+**Why a timeout rather than patching georaster:**
+
+- Patching `node_modules` is fragile, and the patch is lost on every install.
+- Upstream is barely maintained, so a fix may never land.
+- The timeout is cheap, and it covers every kind of parse that never settles, not just the missing `onerror`.
+
+**Caveat:** the timeout abandons the worker; it does not stop it. georaster never calls `worker.terminate()`, on success or failure, so the worker lives until the page unloads. That leak is in the library and out of scope here.
+
+**Alternatives considered:**
+
+- Repeating the identity guard just before `addTo`. This was the audit's minimal fix. It closes F1 but leaves F4 and the scattered checks.
+- A render-token counter on the page. It works, but it duplicates what effect teardown already gives for free.
+- A full search state machine. That is more than a one-overlay app needs; revisit it for year comparison.
