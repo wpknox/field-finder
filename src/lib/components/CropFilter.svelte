@@ -1,6 +1,13 @@
 <!-- src/lib/components/CropFilter.svelte -->
 <script lang="ts">
-	import { getAllCrops, resolveCropColors, type CropColors, type CropKey } from '$lib/crops';
+	import {
+		DOVE_PRESET,
+		getAllCrops,
+		presetSelection,
+		resolveCropColors,
+		type CropColors,
+		type CropKey
+	} from '$lib/crops';
 
 	// `colors` defaults to the hardcoded CROPS colors so the swatches are correct
 	// on first paint; the page overrides it from the live raster palette.
@@ -44,6 +51,15 @@
 				class="text-xs text-blue-600 hover:underline"
 			>
 				Clear All
+			</button>
+			<span class="text-xs text-gray-300">|</span>
+			<button
+				type="button"
+				onclick={() => (selected = presetSelection(DOVE_PRESET))}
+				title="Sunflower, millet, wheat, and sorghum"
+				class="text-xs text-blue-600 hover:underline"
+			>
+				Dove
 			</button>
 		</div>
 	</div>
